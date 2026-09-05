@@ -66,6 +66,7 @@ export function serializeTournamentConditions(formData) {
     platform: formData.platform?.trim() || "eFootball Mobile",
     bannerUrl: formData.bannerUrl || "/images/3.jpg",
     status: formData.status || "open",
+    start_time: formData.start_time?.trim() || "18:00 WAT",
     matchDuration: formData.matchDuration?.trim() || "10 mins",
     extraTime: formData.extraTime || "ON",
     penalties: formData.penalties || "ON",
@@ -75,6 +76,13 @@ export function serializeTournamentConditions(formData) {
     rulesText: formData.rulesText?.trim() || formData.rules?.trim() || "Single elimination knockout. Home and away or single leg as specified. Results submitted with screenshot proof within 15 minutes of match conclusion.",
   };
 
+  // Convert datetime-local strings to proper ISO timestamps for Supabase
+  const toTimestamp = (val) => {
+    if (!val) return null;
+    // datetime-local format: "2026-09-13T18:00"
+    return new Date(val).toISOString();
+  };
+
   return {
     name: formData.name.trim(),
     game: formData.game?.trim() || "eFootball",
@@ -82,8 +90,8 @@ export function serializeTournamentConditions(formData) {
     format: formData.format?.trim() || "1v1 knockout",
     slots: Number(formData.slots),
     start_date: formData.start_date || null,
-    registration_deadline: formData.registration_deadline || null,
-    registration_start: formData.registration_start || null,
+    registration_deadline: toTimestamp(formData.registration_deadline),
+    registration_start: toTimestamp(formData.registration_start),
     tournament_days: Number(formData.tournament_days) || 1,
     status: formData.status || "open",
     rules: JSON.stringify(conditions),
@@ -139,9 +147,8 @@ export async function fetchTournament(id) {
 // Admin-only — creates tournament with serialized conditions
 export async function createTournament(payload) {
   if (!supabase) throw new Error("Supabase is not configured yet — see src/lib/supabase.js");
-  const rowPayload = payload.rules && typeof payload.rules === "object"
-    ? serializeTournamentConditions(payload)
-    : payload;
+  // Always serialize the form payload so only valid columns are sent
+  const rowPayload = serializeTournamentConditions(payload);
 
   const { data, error } = await supabase.from("tournaments").insert(rowPayload).select().single();
   if (error) throw error;
