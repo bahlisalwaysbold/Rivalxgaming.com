@@ -52,15 +52,19 @@ create table if not exists mvp_moments (
 
 alter table mvp_moments enable row level security;
 
-create policy if not exists "MVP moments are publicly viewable"
+-- Drop existing policies first (PostgreSQL doesn't support CREATE POLICY IF NOT EXISTS)
+drop policy if exists "MVP moments are publicly viewable" on mvp_moments;
+create policy "MVP moments are publicly viewable"
   on mvp_moments for select
   using (true);
 
-create policy if not exists "Only admin can insert MVP moments"
+drop policy if exists "Only admin can insert MVP moments" on mvp_moments;
+create policy "Only admin can insert MVP moments"
   on mvp_moments for insert
   with check (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
 
-create policy if not exists "Only admin can delete MVP moments"
+drop policy if exists "Only admin can delete MVP moments" on mvp_moments;
+create policy "Only admin can delete MVP moments"
   on mvp_moments for delete
   using (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
 
@@ -70,16 +74,19 @@ create policy if not exists "Only admin can delete MVP moments"
 
 -- Make entries publicly viewable (needed for public tournament brackets)
 drop policy if exists "Players can view their own entries" on entries;
+drop policy if exists "Entries are publicly viewable" on entries;
 create policy "Entries are publicly viewable"
   on entries for select
   using (true);
 
 -- Allow admin to update entries (confirm/reject applications)
-create policy if not exists "Admin can update entries"
+drop policy if exists "Admin can update entries" on entries;
+create policy "Admin can update entries"
   on entries for update
   using (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
 
 -- Allow admin to update matches
-create policy if not exists "Only admin can update matches"
+drop policy if exists "Only admin can update matches" on matches;
+create policy "Only admin can update matches"
   on matches for update
   using (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
