@@ -64,6 +64,7 @@ export default function Profile() {
             setWinStreak(streak || 0);
             if (player?.squad_photo_url) setSquadPhoto(player.squad_photo_url);
             setReferralStats(myReferralStats);
+            setProfileRank(leaderboardRows.find((row) => row.id === currentUser.id)?.rank || null);
 
             const { data: ownPlayerRow } = await supabase
               .from("players")
