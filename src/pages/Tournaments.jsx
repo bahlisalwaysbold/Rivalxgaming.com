@@ -198,7 +198,7 @@ export default function Tournaments() {
             <div className="rx-tournament-stat-row" style={{ display: "flex", justifyContent: "space-between", marginTop: 14, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
               <div>
                 <div className="rx-display" style={{ fontSize: 18, fontWeight: 700 }}>
-                  ₦{t.entry_fee.toLocaleString()}
+                  {Number(t.entry_fee) === 0 ? "FREE" : `₦${t.entry_fee.toLocaleString()}`}
                 </div>
                 <div style={{ fontSize: 11, color: "var(--muted)" }}>Entry fee</div>
               </div>
