@@ -2242,3 +2242,13 @@ label {
   .rx-tier-primary, .rx-tier-outline { transition: none; }
   .rx-skeleton::after { animation: none; }
 }
+
+
+@media (max-width: 960px) {
+  .rx-header-actions { display: flex !important; margin-left: auto; }
+  .rx-header-whatsapp { display: none !important; }
+  .rx-header-actions .rx-account-menu { display: block; }
+  .rx-header-actions > .rx-btn,
+  .rx-header-actions > .rx-btn-outline { display: none !important; }
+  .rx-header-inner > .rx-menu-toggle { margin-left: 0; }
+}
