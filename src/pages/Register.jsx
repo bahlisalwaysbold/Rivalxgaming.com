@@ -28,6 +28,10 @@ export default function Register() {
   const [message, setMessage] = useState(null);
   const [availability, setAvailability] = useState(null);
   const [checking, setChecking] = useState(false);
+  const [referralCode, setReferralCode] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return new URLSearchParams(window.location.search).get("ref")?.trim().toUpperCase() || "";
+  });
 
   // Debounced username availability check
   useEffect(() => {
@@ -60,7 +64,7 @@ export default function Register() {
       return;
     }
     try {
-      const result = await signUpWithEmail(email, password, tag);
+      const result = await signUpWithEmail(email, password, tag, referralCode);
       // Creates the `players` row right away (if email confirmation is
       // off) so the tag shows up on the leaderboard immediately; if
       // confirmation is required this runs again on first login.
@@ -136,6 +140,19 @@ export default function Register() {
           />
         </div>
         <div>
+          <label>Referral ID <span style={{ color: "var(--muted)", fontWeight: 400 }}>(optional)</span></label>
+          <input
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+            placeholder="e.g. RX-AB12CD34"
+            maxLength={11}
+            autoCapitalize="characters"
+          />
+          <small style={{ display: "block", marginTop: 6, fontSize: 11, color: "var(--muted)" }}>
+            Have a Rival X referral ID? Enter it so the player who referred you gets credit.
+          </small>
+        </div>
+        <div>
           <label>Password</label>
           <input
             type="password"
@@ -160,7 +177,7 @@ export default function Register() {
       <button
         className="rx-btn-outline"
         style={{ width: "100%" }}
-        onClick={() => signInWithGoogle().catch((err) => setMessage(err.message))}
+        onClick={() => signInWithGoogle(referralCode).catch((err) => setMessage(err.message))}
       >
         <GoogleIcon />
         Continue with Google
