@@ -277,6 +277,8 @@ create table entries (
   payment_status text not null default 'pending' check (payment_status in ('pending', 'paid', 'failed')),
   application_status text default 'pending' check (application_status in ('pending', 'confirmed', 'rejected')),
   paystack_ref text unique not null,
+  payment_method text not null default 'paystack' check (payment_method in ('paystack', 'bank_transfer', 'free')),
+  payment_reference text,
   created_at timestamptz default now()
 );
 
