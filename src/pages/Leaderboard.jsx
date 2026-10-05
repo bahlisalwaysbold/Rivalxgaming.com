@@ -175,6 +175,20 @@ export default function Leaderboard() {
               </span>
             </Link>
           ))}
+
+          {leaderboard.length > 11 && (
+            <div style={{ display: "flex", justifyContent: "center", marginTop: 18 }}>
+              <button
+                type="button"
+                className="rx-btn-outline"
+                onClick={() => setVisibleCount((count) => (count >= leaderboard.length ? 11 : leaderboard.length))}
+              >
+                {visibleCount >= leaderboard.length
+                  ? "Show less"
+                  : "Show more · " + (leaderboard.length - visibleCount) + " more players"}
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
