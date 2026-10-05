@@ -23,7 +23,8 @@ export function isAdmin(user) {
   // Strictly verifies against the admin UID or admin email
   if (ADMIN_USER_ID && user.id === ADMIN_USER_ID) return true;
   if (ADMIN_EMAIL && user.email && user.email.toLowerCase() === ADMIN_EMAIL.toLowerCase()) return true;
-  if (user.user_metadata?.is_admin === true || user.app_metadata?.role === "admin") return true;
+  // Only app_metadata is trusted as a role claim. user_metadata is user-editable.
+  if (user.app_metadata?.role === "admin") return true;
   return false;
 }
 
