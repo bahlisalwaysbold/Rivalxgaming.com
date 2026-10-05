@@ -942,7 +942,7 @@ export default function Admin() {
           {/* SECTION 4: Match Conditions & In-Game Regulations */}
           <div style={{ background: "var(--panel)", border: "1px solid var(--border)", padding: 24 }} className="rx-clip">
             <h2 className="rx-display" style={{ fontSize: 20, fontWeight: 700, margin: "0 0 18px" }}>
-              4. Match Conditions & Gameplay Rules
+              5. Match Conditions & Gameplay Rules
             </h2>
 
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
@@ -993,7 +993,7 @@ export default function Admin() {
             </div>
           </div>
 
-          {/* SECTION 5: Banner Artwork Preset */}
+          {/* SECTION 6: Banner Artwork Preset */}
           <div style={{ background: "var(--panel)", border: "1px solid var(--border)", padding: 24 }} className="rx-clip">
             <h2 className="rx-display" style={{ fontSize: 20, fontWeight: 700, margin: "0 0 18px" }}>
               5. Tournament Banner Artwork
