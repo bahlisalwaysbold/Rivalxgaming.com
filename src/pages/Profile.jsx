@@ -3,6 +3,8 @@ import { useParams, Link } from "react-router-dom";
 import PlaceholderImage from "../components/PlaceholderImage.jsx";
 import { supabase, ensurePlayerRow } from "../lib/supabase.js";
 import { fetchPlayerStats } from "../lib/tournaments.js";
+import { getEffectiveVerification } from "../lib/verification.js";
+import VerificationBadge from "../components/VerificationBadge.jsx";
 
 const emptyStats = [
   { label: "Matches", value: "0" },
@@ -23,6 +25,7 @@ export default function Profile() {
   const [profileStats, setProfileStats] = useState(emptyStats);
   const [profileMatches, setProfileMatches] = useState([]);
   const [winStreak, setWinStreak] = useState(0);
+  const [verificationBadge, setVerificationBadge] = useState("none");
   const [isOwnProfile, setIsOwnProfile] = useState(true);
   const [viewingUser, setViewingUser] = useState(null);
 
@@ -55,7 +58,7 @@ export default function Profile() {
           // Viewing another player's profile
           const { data: playerRow } = await supabase
             .from("players")
-            .select("id, tag, avatar_url, squad_photo_url, win_streak, created_at")
+            .select("id, tag, avatar_url, squad_photo_url, win_streak, created_at, verification_badge")
             .eq("id", targetId)
             .single();
           if (playerRow) {
@@ -64,6 +67,11 @@ export default function Profile() {
             setAvatar(playerRow.avatar_url || null);
             setSquadPhoto(playerRow.squad_photo_url || null);
             setWinStreak(playerRow.win_streak || 0);
+            const [{ data: allPlayers }, { data: allMatches }] = await Promise.all([
+              supabase.from("players").select("id, tag, avatar_url, created_at, verification_badge"),
+              supabase.from("matches").select("id, player_id, player2_id, result, winner_id, eliminated_id, round, stage, played_at"),
+            ]);
+            setVerificationBadge(getEffectiveVerification(playerRow, allPlayers || [], allMatches || []));
             const { stats, matches } = await fetchPlayerStats(targetId);
             setProfileStats(stats);
             setProfileMatches(matches);
@@ -179,6 +187,14 @@ export default function Profile() {
             >
               {username}
             </h1>
+            {verificationBadge !== "none" && (
+              <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
+                <VerificationBadge badge={verificationBadge} size="lg" />
+                <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>
+                  {verificationBadge === "blue" ? "Rival X Verified" : verificationBadge === "red" ? "Rival X Elite Verified" : "Rival X Legend Verified"}
+                </span>
+              </div>
+            )}
             {winStreak > 0 && (
               <div style={{ marginTop: 8, fontSize: 13, color: "#4ade80", fontWeight: 600 }}>
                 🔥 {winStreak} win streak
