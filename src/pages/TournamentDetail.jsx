@@ -574,11 +574,20 @@ export default function TournamentDetail() {
             }}
             className="rx-clip"
           >
-            {userEntry.application_status === "confirmed"
-              ? "✓ You're confirmed for this tournament!"
-              : userEntry.application_status === "rejected"
-              ? "✕ Your application was rejected."
-              : "⏳ Your application is pending admin confirmation."}
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexWrap: "wrap" }}>
+              <span>
+                {userEntry.application_status === "confirmed"
+                  ? "✓ You're confirmed for this tournament!"
+                  : userEntry.application_status === "rejected"
+                  ? "✕ Your application was rejected."
+                  : "⏳ You're registered. Your Match Hub room will appear when the round is generated."}
+              </span>
+              {userEntry.application_status !== "rejected" && (
+                <Link to="/play" className="rx-btn" style={{ fontSize: 12, padding: "9px 14px" }}>
+                  Open Match Hub →
+                </Link>
+              )}
+            </div>
           </div>
         ) : (
           <button
