@@ -45,7 +45,9 @@ function monthlyPoints(players, matches, start, end) {
     table[winnerId].points += 3;
     if (isFinal(match)) table[winnerId].points += 5;
   }
-  return Object.values(table).sort((a, b) => b.points - a.points || b.wins - a.wins);
+  return Object.values(table)
+    .filter((player) => player.points > 0)
+    .sort((a, b) => b.points - a.points || b.wins - a.wins);
 }
 
 export function qualifiesForBlueBadge(player, players, matches, now = new Date()) {
