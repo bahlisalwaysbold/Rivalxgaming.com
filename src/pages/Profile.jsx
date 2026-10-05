@@ -44,6 +44,7 @@ export default function Profile() {
         const targetId = id || currentUser?.id;
         const isOwn = !id || (currentUser && id === currentUser.id);
         setIsOwnProfile(isOwn);
+        setProfileRank(null);
 
         if (isOwn) {
           setUsername(currentUser?.user_metadata?.username || currentUser?.email?.split("@")[0] || "Player");
