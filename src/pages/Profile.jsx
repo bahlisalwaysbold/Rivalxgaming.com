@@ -274,19 +274,23 @@ export default function Profile() {
               </div>
             )}
 
-            {isOwnProfile && profileRank && (
-              <div className="rx-profile-ranking-card">
-                <span className="rx-profile-ranking-label">YOUR RIVAL X RANK</span>
-                <strong>#{profileRank}</strong>
-                <Link to="/leaderboard">View full rankings →</Link>
+            {(isOwnProfile && Number.isInteger(profileRank) && profileRank > 0 || winStreak > 0) && (
+              <div className="rx-profile-highlights">
+                {isOwnProfile && Number.isInteger(profileRank) && profileRank > 0 && (
+                  <div className="rx-profile-ranking-card">
+                    <span className="rx-profile-ranking-label">YOUR RIVAL X RANK</span>
+                    <strong>#{profileRank}</strong>
+                    <Link to="/leaderboard">View full rankings →</Link>
+                  </div>
+                )}
+                {winStreak > 0 && (
+                  <div className="rx-profile-streak">
+                    <span aria-hidden="true">🔥</span> {winStreak} win streak
+                  </div>
+                )}
               </div>
             )}
 
-            {winStreak > 0 && (
-              <div style={{ marginTop: 8, fontSize: 13, color: "#4ade80", fontWeight: 600 }}>
-                🔥 {winStreak} win streak
-              </div>
-            )}
             {isOwnProfile ? (
               <button type="button" className="rx-btn-outline rx-settings-button" onClick={() => setSettingsOpen((open) => !open)}>
                 Profile settings
