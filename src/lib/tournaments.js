@@ -325,7 +325,7 @@ export async function fetchLeaderboard() {
 
   const { data: matches, error: matchesError } = await supabase
     .from("matches")
-    .select("player_id, result, winner_id, eliminated_id");
+    .select("player_id, player2_id, result, winner_id, eliminated_id, round, stage, played_at");
   if (matchesError) throw matchesError;
 
   const byPlayer = {};
@@ -343,18 +343,14 @@ export async function fetchLeaderboard() {
   }
 
   for (const m of matches) {
-    if (m.winner_id && byPlayer[m.winner_id]) {
-      byPlayer[m.winner_id].wins += 1;
-      byPlayer[m.winner_id].tournamentsWon += 1;
+    const winnerId = m.winner_id || (m.player_id && m.result === "W" ? m.player_id : null);
+    const loserId = m.eliminated_id || (m.player_id && m.result === "L" ? m.player_id : null);
+
+    if (winnerId && byPlayer[winnerId]) {
+      byPlayer[winnerId].wins += 1;
     }
-    if (m.eliminated_id && byPlayer[m.eliminated_id]) {
-      byPlayer[m.eliminated_id].losses += 1;
-    }
-    if (m.player_id && byPlayer[m.player_id] && m.result === "W") {
-      byPlayer[m.player_id].wins += 1;
-    }
-    if (m.player_id && byPlayer[m.player_id] && m.result === "L") {
-      byPlayer[m.player_id].losses += 1;
+    if (loserId && byPlayer[loserId]) {
+      byPlayer[loserId].losses += 1;
     }
   }
 
@@ -404,8 +400,8 @@ export async function fetchPlayerStats(userId) {
     .eq("id", userId)
     .single();
 
-  const wins = matches.filter((m) => m.winner_id === userId || (m.player_id === userId && m.result === "W")).length;
-  const losses = matches.filter((m) => m.eliminated_id === userId || (m.player_id === userId && m.result === "L")).length;
+  const wins = matches.filter((m) => m.winner_id === userId || (!m.winner_id && m.player_id === userId && m.result === "W")).length;
+  const losses = matches.filter((m) => m.eliminated_id === userId || (!m.eliminated_id && m.player_id === userId && m.result === "L")).length;
   const total = wins + losses;
   const winRate = total ? Math.round((wins / total) * 100) : 0;
 
