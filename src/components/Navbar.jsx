@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link, NavLink } from "react-router-dom";
-import { signOut, supabase, isAdmin } from "../lib/supabase.js";
+import { signOut, supabase, isAdmin, ensurePlayerRow } from "../lib/supabase.js";
 
 const links = [
   { to: "/", label: "Home" },
@@ -27,6 +27,9 @@ export default function Navbar() {
       if (supabase) {
         const { data } = await supabase.auth.getSession();
         const currentUser = data.session?.user ?? null;
+        if (currentUser) {
+          await ensurePlayerRow(currentUser);
+        }
         if (active) {
           setUser(currentUser);
           setAvatar(currentUser ? localStorage.getItem(`rivalx_avatar_${currentUser.id}`) : null);
@@ -50,6 +53,9 @@ export default function Navbar() {
         const currentUser = session?.user ?? null;
         setUser(currentUser);
         setAvatar(currentUser ? localStorage.getItem(`rivalx_avatar_${currentUser.id}`) : null);
+        if (currentUser) {
+          ensurePlayerRow(currentUser).catch(() => {});
+        }
       }
     });
 
