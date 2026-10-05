@@ -36,18 +36,31 @@ export function isAdmin(user) {
 export async function ensurePlayerRow(user) {
   if (!supabase || !user) return;
 
-  const { data: existing } = await supabase
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (sessionData.session?.user.id !== user.id) return;
+
+  const { data: existing, error: lookupError } = await supabase
     .from("players")
     .select("id")
     .eq("id", user.id)
     .maybeSingle();
+  if (lookupError) throw lookupError;
 
   if (!existing) {
     const { error: insertError } = await supabase.from("players").insert({
       id: user.id,
       tag: user.user_metadata?.username || user.email?.split("@")[0] || "Player",
     });
-    if (insertError) throw insertError;
+    if (insertError) {
+      const { data: created, error: verifyError } = await supabase
+        .from("players")
+        .select("id")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (verifyError) throw verifyError;
+      if (!created) throw insertError;
+    }
   }
 
   const { data: verifiedPlayer, error: verifyError } = await supabase

@@ -34,6 +34,8 @@ export default function Profile() {
   const [referralStats, setReferralStats] = useState(null);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [profileRank, setProfileRank] = useState(null);
+  const [profileRankLoading, setProfileRankLoading] = useState(false);
+  const [profileRankError, setProfileRankError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [activeTab, setActiveTab] = useState("overview");
@@ -50,6 +52,8 @@ export default function Profile() {
         const isOwn = !id || (currentUser && id === currentUser.id);
         setIsOwnProfile(isOwn);
         setProfileRank(null);
+        setProfileRankLoading(false);
+        setProfileRankError(null);
 
         if (isOwn) {
           setUsername(currentUser?.user_metadata?.username || currentUser?.email?.split("@")[0] || "Player");
@@ -58,22 +62,41 @@ export default function Profile() {
           setBannerPhoto(currentUser ? localStorage.getItem(`rivalx_banner_${currentUser.id}`) : null);
 
           if (currentUser) {
-            await ensurePlayerRow(currentUser);
-            const [{ stats, matches, winStreak: streak, player }, myReferralStats, leaderboardRows] = await Promise.all([
+            setProfileRankLoading(true);
+            try {
+              await ensurePlayerRow(currentUser);
+              const { data: rankingPlayer, error: rankingPlayerError } = await supabase
+                .from("players")
+                .select("id")
+                .eq("id", currentUser.id)
+                .maybeSingle();
+              if (rankingPlayerError) throw rankingPlayerError;
+              if (!rankingPlayer) throw new Error("Your player record is not available yet.");
+
+              const leaderboardRows = await fetchLeaderboard();
+              const ownRanking = leaderboardRows.find((row) => row.id === rankingPlayer.id);
+              if (!ownRanking) throw new Error("Your player record was not included in the leaderboard.");
+              setProfileRank(ownRanking.rank);
+            } catch (error) {
+              console.error("Unable to load the current player's leaderboard rank:", error);
+              setProfileRankError("Your rank could not be loaded. Please try again later.");
+            } finally {
+              setProfileRankLoading(false);
+            }
+
+            const [{ stats, matches, winStreak: streak, player }, myReferralStats] = await Promise.all([
               fetchPlayerStats(currentUser.id),
               fetchMyReferralStats().catch(() => null),
-              fetchLeaderboard().catch(() => []),
             ]);
             setProfileStats(stats);
             setProfileMatches(matches);
             setWinStreak(streak || 0);
             if (player?.squad_photo_url) setSquadPhoto(player.squad_photo_url);
             setReferralStats(myReferralStats);
-            setProfileRank(leaderboardRows.find((row) => row.id === currentUser.id)?.rank || null);
 
             const { data: ownPlayerRow } = await supabase
               .from("players")
-              .select("id, tag, avatar_url, squad_photo_url, win_streak, created_at, verification_badge, referral_code")
+              .select("id, tag, avatar_url, squad_photo_url, win_streak, created_at, verification_badge")
 
               .eq("id", currentUser.id)
               .maybeSingle();
@@ -255,7 +278,13 @@ export default function Profile() {
   const tournaments = Number(profileStats.find((s) => s.label === "Tournaments")?.value || 0);
   const losses = Math.max(matchesPlayed - wins, 0);
   const winRate = matchesPlayed >= 5 ? Math.round((wins / matchesPlayed) * 100) : null;
-  const rankLabel = matchesPlayed === 0 ? "Unranked" : profileRank ? "#" + profileRank : "—";
+  const rankLabel = isOwnProfile && Number.isInteger(profileRank) && profileRank > 0
+    ? "#" + profileRank
+    : profileRankLoading
+      ? "Loading…"
+      : profileRankError
+        ? "Unavailable"
+        : "—";
   const accentBadge = tier === "legend" ? "LEGEND VERIFIED" : tier === "blue" ? "BLUE VERIFIED" : null;
   const referralActive = Math.min(Number(referralStats?.active_referrals || 0), 100);
   const referralPlay = Math.min(Number(referralStats?.active_play_rate || 0), 100);
@@ -323,8 +352,13 @@ export default function Profile() {
                 <span className={winStreak > 0 ? "rx-rank-movement rx-rank-up" : losses > 0 ? "rx-rank-movement rx-rank-down" : "rx-rank-movement rx-rank-flat"} aria-label={winStreak > 0 ? "Positive movement" : losses > 0 ? "Negative movement" : "No recent movement"}>
                   <span aria-hidden="true">{winStreak > 0 ? "↑" : losses > 0 ? "↓" : "→"}</span> {winStreak > 0 ? winStreak + " streak" : losses > 0 ? losses + " loss" + (losses === 1 ? "" : "es") : "No movement"}
                 </span>
-                <span>{wins * 3} pts</span>
+                <span>{isOwnProfile ? `${wins * 3} pts` : "Player profile"}</span>
               </div>
+              {isOwnProfile && profileRankError && (
+                <p className="rx-profile-rank-error" role="alert" style={{ color: "var(--red)", fontSize: 12 }}>
+                  {profileRankError}
+                </p>
+              )}
               <div className="rx-rank-actions">
                 <Link to="/leaderboard" className="rx-tier-primary">Full rankings</Link>
                 {isOwnProfile && <button type="button" className="rx-tier-outline" onClick={() => setSettingsOpen((open) => !open)}>Edit profile</button>}

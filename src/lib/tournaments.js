@@ -340,6 +340,12 @@ export async function fetchTournamentMatches(tournamentId) {
 export async function fetchLeaderboard() {
   if (!supabase) return [];
 
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!sessionData.session?.user) {
+    throw new Error("You must be signed in to view the leaderboard.");
+  }
+
   // Fetch all players so even new users with 0 matches appear
   const { data: players, error: playersError } = await supabase
     .from("players")
@@ -352,7 +358,7 @@ export async function fetchLeaderboard() {
   if (matchesError) throw matchesError;
 
   const byPlayer = {};
-  for (const p of players) {
+  for (const p of players || []) {
     byPlayer[p.id] = {
       id: p.id,
       tag: p.tag,
@@ -365,7 +371,7 @@ export async function fetchLeaderboard() {
     };
   }
 
-  for (const m of matches) {
+  for (const m of matches || []) {
     const winnerId = m.winner_id || (m.player_id && m.result === "W" ? m.player_id : null);
     const loserId = m.eliminated_id || (m.player_id && m.result === "L" ? m.player_id : null);
 

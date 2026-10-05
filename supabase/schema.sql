@@ -18,13 +18,88 @@ create table players (
   created_at timestamptz default now()
 );
 
+create or replace function public.create_player_for_auth_user(
+  p_user_id uuid,
+  p_email text,
+  p_metadata jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  player_tag text;
+begin
+  player_tag := nullif(pg_catalog.btrim(p_metadata ->> 'username'), '');
+  if player_tag is null then
+    player_tag := nullif(pg_catalog.split_part(p_email, '@', 1), '');
+  end if;
+  if player_tag is null then
+    player_tag := 'Player';
+  end if;
+
+  if exists (
+    select 1
+    from public.players
+    where pg_catalog.lower(tag) = pg_catalog.lower(player_tag)
+      and id <> p_user_id
+  ) then
+    player_tag := player_tag || '-' || pg_catalog.left(p_user_id::text, 8);
+  end if;
+
+  begin
+    insert into public.players (id, tag)
+    values (p_user_id, player_tag)
+    on conflict (id) do nothing;
+  exception
+    when unique_violation then
+      insert into public.players (id, tag)
+      values (p_user_id, player_tag || '-' || pg_catalog.replace(p_user_id::text, '-', ''))
+      on conflict (id) do nothing;
+  end;
+end;
+$$;
+
+revoke all on function public.create_player_for_auth_user(uuid, text, jsonb)
+  from public, anon, authenticated;
+
+create or replace function public.handle_new_auth_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  perform public.create_player_for_auth_user(new.id, new.email, new.raw_user_meta_data);
+  return new;
+end;
+$$;
+
+revoke all on function public.handle_new_auth_user()
+  from public, anon, authenticated;
+
+drop trigger if exists on_auth_user_created_create_player on auth.users;
+create trigger on_auth_user_created_create_player
+  after insert on auth.users
+  for each row execute function public.handle_new_auth_user();
+
 alter table players enable row level security;
 
--- Anyone can view player tags/avatars (needed for the public
--- leaderboard and profile pages).
-create policy "Players are publicly viewable"
+-- Only signed-in members can read the fields used by profiles and rankings.
+drop policy if exists "Players are publicly viewable" on players;
+create policy "Public profile identity is viewable"
   on players for select
   using (true);
+create policy "Authenticated members can view players"
+  on players for select
+  using (auth.uid() is not null);
+
+revoke select on table players from public, anon, authenticated;
+grant select (id, tag, avatar_url, squad_photo_url)
+  on table players to anon;
+grant select (id, tag, avatar_url, squad_photo_url, win_streak, verification_badge, created_at)
+  on table players to authenticated;
 
 -- A player can only create/edit their own row.
 create policy "Players can insert their own row"
@@ -339,9 +414,16 @@ create table matches (
 
 alter table matches enable row level security;
 
-create policy "Matches are publicly viewable"
+drop policy if exists "Matches are publicly viewable" on matches;
+create policy "Authenticated members can view matches"
   on matches for select
-  using (true);
+  using (auth.uid() is not null);
+
+revoke select on table matches from public, anon, authenticated;
+grant select (
+  id, tournament_id, player_id, player2_id, opponent_tag, result, score,
+  round, stage, winner_id, eliminated_id, played_at
+) on table matches to authenticated;
 
 create policy "Only admin can insert matches"
   on matches for insert

@@ -65,10 +65,9 @@ export default function Register() {
     }
     try {
       const result = await signUpWithEmail(email, password, tag, referralCode);
-      // Creates the `players` row right away (if email confirmation is
-      // off) so the tag shows up on the leaderboard immediately; if
-      // confirmation is required this runs again on first login.
-      if (result?.data?.user) await ensurePlayerRow(result.data.user);
+      // The database auth-user trigger creates the player row even when
+      // email confirmation is required and this request has no session.
+      if (result?.data?.user && result.data.session) await ensurePlayerRow(result.data.user);
       setMessage("Check your email to verify your account.");
     } catch (err) {
       setMessage(err.message || "Unable to create your account.");

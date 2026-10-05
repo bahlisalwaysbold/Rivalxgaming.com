@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "../lib/supabase.js";
+import { ensurePlayerRow, supabase } from "../lib/supabase.js";
 import { fetchLeaderboard } from "../lib/tournaments.js";
 import VerificationBadge from "../components/VerificationBadge.jsx";
 
@@ -9,9 +9,37 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
   const [user, setUser] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let active = true;
+
+    async function loadForUser(currentUser) {
+      setUser(currentUser);
+      setAuthChecked(true);
+      setError(null);
+
+      if (!currentUser) {
+        setLeaderboard([]);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        await ensurePlayerRow(currentUser);
+        const rows = await fetchLeaderboard();
+        if (active) setLeaderboard(rows);
+      } catch (loadError) {
+        console.error("Unable to load the Rival X leaderboard:", loadError);
+        if (active) {
+          setLeaderboard([]);
+          setError(loadError.message || "Unable to load the leaderboard.");
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    }
 
     async function checkAuthAndLoad() {
       if (!supabase) {
@@ -23,46 +51,24 @@ export default function Leaderboard() {
         return;
       }
 
-      const { data } = await supabase.auth.getSession();
-      const currentUser = data.session?.user ?? null;
-
-      if (!active) return;
-      setUser(currentUser);
-      setAuthChecked(true);
-
-      if (!currentUser) {
-        setLoading(false);
-        return;
-      }
-
       try {
-        const rows = await fetchLeaderboard();
-        if (active) setLeaderboard(rows);
-      } catch {
-        if (active) setLeaderboard([]);
-      } finally {
-        if (active) setLoading(false);
+        const { data, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) throw sessionError;
+        if (active) await loadForUser(data.session?.user ?? null);
+      } catch (loadError) {
+        console.error("Unable to check authentication for the leaderboard:", loadError);
+        if (active) {
+          setError(loadError.message || "Unable to verify your session.");
+          setAuthChecked(true);
+          setLoading(false);
+        }
       }
     }
 
     checkAuthAndLoad();
 
     const authSubscription = supabase?.auth.onAuthStateChange((_event, session) => {
-      const currentUser = session?.user ?? null;
-      if (!active) return;
-      setUser(currentUser);
-      setAuthChecked(true);
-
-      if (!currentUser) {
-        setLeaderboard([]);
-        setLoading(false);
-      } else {
-        setLoading(true);
-        fetchLeaderboard()
-          .then((rows) => active && setLeaderboard(rows))
-          .catch(() => active && setLeaderboard([]))
-          .finally(() => active && setLoading(false));
-      }
+      if (active) void loadForUser(session?.user ?? null);
     });
 
     return () => {
@@ -77,11 +83,13 @@ export default function Leaderboard() {
         Leaderboard
       </h1>
       <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 32 }}>
-        Every registered player appears here. Win matches and tournaments to climb the ranks.
+        The top 10 Rival X players. Win matches and tournaments to climb the ranks.
       </p>
 
       {!authChecked || loading ? (
         <p style={{ color: "var(--muted)" }}>Loading…</p>
+      ) : error ? (
+        <p role="alert" style={{ color: "var(--red)" }}>{error}</p>
       ) : !user ? (
         <div
           style={{

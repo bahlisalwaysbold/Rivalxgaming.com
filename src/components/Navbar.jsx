@@ -54,7 +54,9 @@ export default function Navbar() {
         setUser(currentUser);
         setAvatar(currentUser ? localStorage.getItem(`rivalx_avatar_${currentUser.id}`) : null);
         if (currentUser) {
-          ensurePlayerRow(currentUser).catch(() => {});
+          ensurePlayerRow(currentUser).catch((error) => {
+            console.error("Unable to ensure player row after authentication:", error);
+          });
         }
       }
     });
