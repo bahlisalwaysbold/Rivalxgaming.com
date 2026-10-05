@@ -53,6 +53,20 @@ export default function Profile() {
             setProfileMatches(matches);
             setWinStreak(streak || 0);
             if (player?.squad_photo_url) setSquadPhoto(player.squad_photo_url);
+
+            const { data: ownPlayerRow } = await supabase
+              .from("players")
+              .select("id, tag, avatar_url, squad_photo_url, win_streak, created_at, verification_badge")
+              .eq("id", currentUser.id)
+              .maybeSingle();
+
+            if (ownPlayerRow) {
+              const [{ data: allPlayers }, { data: allMatches }] = await Promise.all([
+                supabase.from("players").select("id, tag, avatar_url, created_at, verification_badge"),
+                supabase.from("matches").select("id, player_id, player2_id, result, winner_id, eliminated_id, round, stage, played_at"),
+              ]);
+              setVerificationBadge(getEffectiveVerification(ownPlayerRow, allPlayers || [], allMatches || []));
+            }
           }
         } else {
           // Viewing another player's profile
