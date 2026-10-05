@@ -60,6 +60,7 @@ set search_path = public
 as $$
 declare
   player_ids uuid[];
+  previous_round text;
   pair_count integer := 0;
   i integer;
   p1 uuid;
@@ -69,20 +70,47 @@ begin
     raise exception 'Only Rival X administrators can generate matches';
   end if;
 
-  select array_agg(e.player_id order by e.created_at, e.player_id)
-    into player_ids
-  from public.entries e
-  where e.tournament_id = p_tournament_id
-    and e.payment_status = 'paid'
-    and e.application_status <> 'rejected'
-    and not exists (
-      select 1
-      from public.match_rooms r
-      where r.tournament_id = p_tournament_id
-        and r.round = p_round
-        and (r.player1_id = e.player_id or r.player2_id = e.player_id)
-        and r.status <> 'cancelled'
-    );
+  previous_round := case p_round
+    when 'Round of 32' then 'Round of 64'
+    when 'Round of 16' then 'Round of 32'
+    when 'Quarter Finals' then 'Round of 16'
+    when 'Semi Finals' then 'Quarter Finals'
+    when 'Final' then 'Semi Finals'
+    else null
+  end;
+
+  if previous_round is null then
+    select array_agg(e.player_id order by e.created_at, e.player_id)
+      into player_ids
+    from public.entries e
+    where e.tournament_id = p_tournament_id
+      and e.payment_status = 'paid'
+      and e.application_status <> 'rejected'
+      and not exists (
+        select 1
+        from public.match_rooms r
+        where r.tournament_id = p_tournament_id
+          and r.round = p_round
+          and (r.player1_id = e.player_id or r.player2_id = e.player_id)
+          and r.status <> 'cancelled'
+      );
+  else
+    select array_agg(r.winner_id order by r.created_at, r.winner_id)
+      into player_ids
+    from public.match_rooms r
+    where r.tournament_id = p_tournament_id
+      and r.round = previous_round
+      and r.status = 'completed'
+      and r.winner_id is not null
+      and not exists (
+        select 1
+        from public.match_rooms next_room
+        where next_room.tournament_id = p_tournament_id
+          and next_room.round = p_round
+          and (next_room.player1_id = r.winner_id or next_room.player2_id = r.winner_id)
+          and next_room.status <> 'cancelled'
+      );
+  end if;
 
   if player_ids is null or array_length(player_ids, 1) < 2 then
     return 0;
@@ -92,20 +120,8 @@ begin
     p1 := player_ids[(i * 2) - 1];
     p2 := player_ids[i * 2];
 
-    insert into public.match_rooms (
-      tournament_id,
-      round,
-      player1_id,
-      player2_id,
-      status
-    )
-    values (
-      p_tournament_id,
-      p_round,
-      p1,
-      p2,
-      'ready'
-    );
+    insert into public.match_rooms (tournament_id, round, player1_id, player2_id, status)
+    values (p_tournament_id, p_round, p1, p2, 'ready');
 
     pair_count := pair_count + 1;
   end loop;
