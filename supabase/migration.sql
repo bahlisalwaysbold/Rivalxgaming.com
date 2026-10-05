@@ -90,3 +90,25 @@ drop policy if exists "Only admin can update matches" on matches;
 create policy "Only admin can update matches"
   on matches for update
   using (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
+
+-- ─────────────────────────────────────────────
+-- ENTRIES: temporary bank-transfer payments
+-- ─────────────────────────────────────────────
+alter table entries
+  add column if not exists payment_method text not null default 'paystack';
+
+alter table entries
+  add column if not exists payment_reference text;
+
+alter table entries
+  drop constraint if exists entries_payment_method_check;
+
+alter table entries
+  add constraint entries_payment_method_check
+  check (payment_method in ('paystack', 'bank_transfer', 'free'));
+
+create index if not exists entries_payment_method_idx
+  on entries(payment_method);
+
+create index if not exists entries_payment_reference_idx
+  on entries(payment_reference);
