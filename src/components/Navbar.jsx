@@ -7,6 +7,7 @@ const links = [
   { to: "/tournaments", label: "Tournaments" },
   { to: "/leaderboard", label: "Leaderboard" },
   { to: "/mvp", label: "MVP Moments" },
+  { to: "/play", label: "Match Hub" },
   { to: "/profile", label: "Profile" },
 ];
 
