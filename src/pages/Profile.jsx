@@ -52,9 +52,10 @@ export default function Profile() {
 
           if (currentUser) {
             await ensurePlayerRow(currentUser);
-            const [{ stats, matches, winStreak: streak, player }, myReferralStats] = await Promise.all([
+            const [{ stats, matches, winStreak: streak, player }, myReferralStats, leaderboardRows] = await Promise.all([
               fetchPlayerStats(currentUser.id),
               fetchMyReferralStats().catch(() => null),
+              fetchLeaderboard().catch(() => []),
             ]);
             setProfileStats(stats);
             setProfileMatches(matches);
@@ -231,7 +232,7 @@ export default function Profile() {
   return (
     <div>
       {/* Hero */}
-      <div className="rx-container rx-profile-hero" style={{ padding: "56px 24px 40px", borderBottom: "1px solid var(--border)" }}>
+      <div className={`rx-container rx-profile-hero rx-verified-profile rx-verified-profile-${verificationBadge}`} style={{ padding: "56px 24px 40px", borderBottom: "1px solid var(--border)" }}>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 24, flexWrap: "wrap" }}>
           <div className="rx-profile-avatar" style={{ width: 96, flexShrink: 0 }}>
             {avatar ? <img src={avatar} alt="Profile avatar" /> : <PlaceholderImage height={96} src="/images/icon.png" alt="Player avatar" />}
@@ -257,6 +258,27 @@ export default function Profile() {
                 <VerificationBadge badge={verificationBadge} size="lg" />
               </span>
             </h1>
+            {verificationBadge !== "none" && (
+              <div className="rx-verification-status">
+                <VerificationBadge badge={verificationBadge} size="lg" />
+                <span>
+                  {verificationBadge === "blue"
+                    ? "Rival X Verified"
+                    : verificationBadge === "red"
+                    ? "Rival X Elite Verified"
+                    : "Rival X Legend Verified"}
+                </span>
+              </div>
+            )}
+
+            {isOwnProfile && profileRank && (
+              <div className="rx-profile-ranking-card">
+                <span className="rx-profile-ranking-label">YOUR RIVAL X RANK</span>
+                <strong>#{profileRank}</strong>
+                <Link to="/leaderboard">View full rankings →</Link>
+              </div>
+            )}
+
             {winStreak > 0 && (
               <div style={{ marginTop: 8, fontSize: 13, color: "#4ade80", fontWeight: 600 }}>
                 🔥 {winStreak} win streak
