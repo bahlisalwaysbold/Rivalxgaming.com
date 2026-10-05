@@ -372,6 +372,92 @@ begin
 end;
 $$;
 
+create or replace function public.seed_live_tournament_rooms(p_tournament_id uuid)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  eligible_count integer;
+  first_round text;
+  player_ids uuid[];
+  pair_count integer := 0;
+  i integer;
+begin
+  select count(*)
+    into eligible_count
+  from public.entries e
+  where e.tournament_id = p_tournament_id
+    and e.payment_status = 'paid'
+    and e.application_status <> 'rejected';
+
+  if eligible_count < 2 then
+    return 0;
+  end if;
+
+  first_round := case
+    when eligible_count <= 2 then 'Final'
+    when eligible_count <= 4 then 'Semi Finals'
+    when eligible_count <= 8 then 'Quarter Finals'
+    when eligible_count <= 16 then 'Round of 16'
+    when eligible_count <= 32 then 'Round of 32'
+    else 'Round of 64'
+  end;
+
+  if exists (
+    select 1 from public.match_rooms
+    where tournament_id = p_tournament_id
+      and round = first_round
+      and status <> 'cancelled'
+  ) then
+    return 0;
+  end if;
+
+  select array_agg(e.player_id order by e.created_at, e.player_id)
+    into player_ids
+  from public.entries e
+  where e.tournament_id = p_tournament_id
+    and e.payment_status = 'paid'
+    and e.application_status <> 'rejected';
+
+  for i in 1..floor(array_length(player_ids, 1) / 2)::integer loop
+    insert into public.match_rooms (tournament_id, round, player1_id, player2_id, status)
+    values (
+      p_tournament_id,
+      first_round,
+      player_ids[(i * 2) - 1],
+      player_ids[i * 2],
+      'ready'
+    );
+    pair_count := pair_count + 1;
+  end loop;
+
+  return pair_count;
+end;
+$$;
+
+create or replace function public.auto_seed_live_tournament_rooms()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if new.status = 'live' and (tg_op = 'INSERT' or old.status is distinct from new.status) then
+    perform public.seed_live_tournament_rooms(new.id);
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists seed_match_rooms_when_tournament_goes_live on public.tournaments;
+create trigger seed_match_rooms_when_tournament_goes_live
+after insert or update of status on public.tournaments
+for each row
+execute function public.auto_seed_live_tournament_rooms();
+
+
 do $$
 begin
   if not exists (
