@@ -16,6 +16,9 @@ import {
   fetchMvpMoments,
   fetchVerificationPlayers,
   updatePlayerVerification,
+  generateMatchRooms,
+  fetchTournamentMatchRooms,
+  resolveMatchRoom,
 } from "../lib/tournaments.js";
 
 const BANNER_PRESETS = [
@@ -97,6 +100,10 @@ export default function Admin() {
   const [players, setPlayers] = useState([]);
   const [selectedTournamentEntries, setSelectedTournamentEntries] = useState([]);
   const [tournamentMatches, setTournamentMatches] = useState([]);
+  const [matchRoomRound, setMatchRoomRound] = useState("Round of 32");
+  const [matchRoomsForAdmin, setMatchRoomsForAdmin] = useState([]);
+  const [generatingRooms, setGeneratingRooms] = useState(false);
+  const [resolvingRoom, setResolvingRoom] = useState(null);
 
   // Application management state
   const [entriesByTournament, setEntriesByTournament] = useState({});
@@ -178,6 +185,66 @@ export default function Admin() {
       setErrorMsg(err.message || "Could not update verification.");
     } finally {
       setUpdatingVerification(null);
+    }
+  }
+
+  useEffect(() => {
+    if (!matchForm.tournament_id) {
+      setMatchRoomsForAdmin([]);
+      return;
+    }
+    async function loadRooms() {
+      try {
+        setMatchRoomsForAdmin(await fetchTournamentMatchRooms(matchForm.tournament_id));
+      } catch {
+        setMatchRoomsForAdmin([]);
+      }
+    }
+    loadRooms();
+  }, [matchForm.tournament_id]);
+
+  async function handleGenerateRooms() {
+    if (!matchForm.tournament_id) {
+      setMatchError("Select a tournament first.");
+      return;
+    }
+    setGeneratingRooms(true);
+    setMatchError(null);
+    setMatchMessage(null);
+    try {
+      const count = await generateMatchRooms(matchForm.tournament_id, matchRoomRound);
+      const rooms = await fetchTournamentMatchRooms(matchForm.tournament_id);
+      setMatchRoomsForAdmin(rooms);
+      setMatchMessage(count
+        ? `${count} match room${count === 1 ? "" : "s"} generated for ${matchRoomRound}.`
+        : "No new pairings were created. Players may already be paired for this round, or fewer than two eligible players are registered.");
+    } catch (err) {
+      setMatchError(err.message || "Could not generate match rooms.");
+    } finally {
+      setGeneratingRooms(false);
+    }
+  }
+
+  async function handleResolveRoom(room) {
+    const p1 = window.prompt(`Final score for ${room.player1?.tag || "Player 1"}:`, room.player1_score ?? "");
+    if (p1 === null) return;
+    const p2 = window.prompt(`Final score for ${room.player2?.tag || "Player 2"}:`, room.player2_score ?? "");
+    if (p2 === null) return;
+    if (p1 === "" || p2 === "" || Number.isNaN(Number(p1)) || Number.isNaN(Number(p2))) {
+      setMatchError("Enter numeric scores for both players.");
+      return;
+    }
+
+    setResolvingRoom(room.id);
+    setMatchError(null);
+    try {
+      await resolveMatchRoom(room.id, Number(p1), Number(p2));
+      setMatchRoomsForAdmin(await fetchTournamentMatchRooms(matchForm.tournament_id));
+      setMatchMessage("Disputed room resolved and the official match result was posted.");
+    } catch (err) {
+      setMatchError(err.message || "Could not resolve this room.");
+    } finally {
+      setResolvingRoom(null);
     }
   }
 
@@ -900,8 +967,78 @@ export default function Admin() {
               Post Match Result
             </h2>
             <p style={{ color: "var(--muted)", fontSize: 13, marginBottom: 20 }}>
-              Select a tournament, choose the two players, enter the score, and the result will be live on the site immediately.
+              Use Match Hub to pair registered players into live rooms. The old manual result form remains available as an admin fallback.
             </p>
+
+            <div style={{ background: "var(--bg)", border: "1px solid var(--border)", padding: 18, marginBottom: 22 }} className="rx-clip">
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", marginBottom: 14 }}>
+                <div>
+                  <div className="rx-eyebrow" style={{ marginBottom: 4 }}>MATCH HUB CONTROL</div>
+                  <h3 className="rx-display" style={{ fontSize: 18, margin: 0 }}>Build the next round</h3>
+                </div>
+                <Link to="/play" className="rx-btn-outline" style={{ fontSize: 12, padding: "8px 12px" }}>Open Player Hub →</Link>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 12, alignItems: "end" }}>
+                <div>
+                  <label>Tournament</label>
+                  <select
+                    value={matchForm.tournament_id}
+                    onChange={(e) => updateMatchField("tournament_id", e.target.value)}
+                    style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--border)", color: "var(--silver)", padding: "10px 12px" }}
+                  >
+                    <option value="">Select tournament…</option>
+                    {tournaments.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label>Round</label>
+                  <select
+                    value={matchRoomRound}
+                    onChange={(e) => setMatchRoomRound(e.target.value)}
+                    style={{ width: "100%", background: "var(--bg)", border: "1px solid var(--border)", color: "var(--silver)", padding: "10px 12px" }}
+                  >
+                    <option value="Round of 64">Round of 64</option>
+                    <option value="Round of 32">Round of 32</option>
+                    <option value="Round of 16">Round of 16</option>
+                    <option value="Quarter Finals">Quarter Finals</option>
+                    <option value="Semi Finals">Semi Finals</option>
+                    <option value="Final">Final</option>
+                  </select>
+                </div>
+                <button type="button" className="rx-btn" onClick={handleGenerateRooms} disabled={generatingRooms}>
+                  {generatingRooms ? "Pairing…" : "Generate Match Rooms"}
+                </button>
+              </div>
+
+              {matchForm.tournament_id && (
+                <div style={{ marginTop: 18 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                    <span style={{ color: "var(--muted)", fontSize: 12 }}>{matchRoomsForAdmin.length} rooms for this tournament</span>
+                    <span style={{ color: "var(--muted)", fontSize: 11 }}>Players receive their room automatically at /play</span>
+                  </div>
+                  {matchRoomsForAdmin.length ? (
+                    <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                      {matchRoomsForAdmin.map((room) => (
+                        <div key={room.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", padding: "10px 12px", border: "1px solid var(--border)", background: "var(--panel)", fontSize: 12 }}>
+                          <span><strong>{room.player1?.tag || "Player 1"}</strong> vs <strong>{room.player2?.tag || "Player 2"}</strong></span>
+                          <span style={{ color: room.status === "completed" ? "#4ade80" : room.status === "disputed" ? "#ff8888" : "var(--muted)" }}>
+                            {room.status.toUpperCase()}
+                          </span>
+                          {room.status === "disputed" && (
+                            <button type="button" className="rx-btn" style={{ fontSize: 11, padding: "6px 10px" }} onClick={() => handleResolveRoom(room)} disabled={resolvingRoom === room.id}>
+                              {resolvingRoom === room.id ? "Resolving…" : "Resolve"}
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ color: "var(--muted)", fontSize: 12, margin: 0 }}>No Match Hub rooms have been generated for this tournament yet.</p>
+                  )}
+                </div>
+              )}
+            </div>
 
             {matchMessage && (
               <div style={{ background: "rgba(34, 197, 94, 0.15)", border: "1px solid #22c55e", color: "#4ade80", padding: "12px 16px", marginBottom: 16, fontSize: 13 }} className="rx-clip">
