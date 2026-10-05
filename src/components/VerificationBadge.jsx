@@ -1,1 +1,40 @@
-import React from "react";\n\nconst BADGE_META = {\n  blue: { title: "Rival X Verified", color: "#1d9bf0" },\n  red: { title: "Rival X Elite Verified — unbeaten for 6+ years", color: "#f4212e" },\n  gold: { title: "Rival X Legend Verified — unbeaten for 3+ years", color: "#e2b719" },\n};\n\nconst SHAPE = "M22.25 12c0-1.43-.88-2.67-2.19-3.34.46-1.39.2-2.9-.81-3.91s-2.52-1.27-3.91-.81c-.66-1.31-1.91-2.19-3.34-2.19s-2.67.88-3.33 2.19c-1.4-.46-2.91-.2-3.92.81s-1.26 2.52-.8 3.91c-1.31.67-2.2 1.91-2.2 3.34s.89 2.67 2.2 3.34c-.46 1.39-.21 2.9.8 3.91s2.52 1.26 3.91.81c.67 1.31 1.91 2.19 3.34 2.19s2.68-.88 3.34-2.19c1.39.45 2.9.2 3.91-.81s1.27-2.52.81-3.91c1.31-.67 2.19-1.91 2.19-3.34z";\nconst CHECK = "M10.54 16.2L6.8 12.46l1.41-1.42 2.26 2.26 4.8-5.23 1.47 1.36-6.2 6.77z";\n\nexport default function VerificationBadge({ badge, size = "sm" }) {\n  const meta = BADGE_META[badge];\n  if (!meta) return null;\n  const dimension = size === "lg" ? 24 : 20;\n  return (\n    <svg width={dimension} height={dimension} viewBox="0 0 24 24" aria-label={meta.title} role="img" style={{ display: "inline-block", flex: "0 0 auto", verticalAlign: "middle", color: meta.color, marginLeft: 2 }}>\n      <path d={SHAPE} fill="currentColor" />\n      <path d={CHECK} fill="#fff" />\n    </svg>\n  );\n}\n
+import React from "react";
+
+const BADGE_META = {
+  blue: { title: "Rival X Verified", color: "#1d9bf0" },
+  red: { title: "Rival X Elite Verified — unbeaten for 6+ years", color: "#f4212e" },
+  gold: { title: "Rival X Legend Verified — unbeaten for 3+ years", color: "#e2b719" },
+};
+
+const SHAPE =
+  "M20.396 11c-.018-.646-.215-1.275-.57-1.816-.354-.54-.852-.972-1.438-1.246.223-.607.27-1.264.14-1.897-.131-.634-.437-1.218-.882-1.687-.47-.445-1.053-.75-1.687-.882-.633-.13-1.29-.083-1.897.14-.273-.587-.704-1.086-1.245-1.44S11.647 1.62 11 1.604c-.646.017-1.273.213-1.813.568s-.969.854-1.24 1.44c-.608-.223-1.267-.272-1.902-.14-.635.13-1.22.436-1.69.882-.445.47-.749 1.055-.878 1.688-.13.633-.08 1.29.144 1.896-.587.274-1.087.705-1.443 1.245-.356.54-.555 1.17-.574 1.817.02.647.218 1.276.574 1.817.356.54.856.972 1.443 1.245-.224.606-.274 1.263-.144 1.896.13.634.433 1.218.877 1.688.47.443 1.054.747 1.687.878.633.132 1.29.084 1.897-.136.274.586.705 1.084 1.246 1.439.54.354 1.17.551 1.816.569.647-.016 1.276-.213 1.817-.567s.972-.854 1.245-1.44c.604.239 1.266.296 1.903.164.636-.132 1.22-.447 1.68-.907.46-.46.776-1.044.908-1.681s.075-1.299-.165-1.903c.586-.274 1.084-.705 1.439-1.246.354-.54.551-1.17.569-1.816z";
+
+const CHECK =
+  "M9.585 14.929l-3.543-3.543 1.18-1.18 2.363 2.363 5.16-5.16 1.18 1.18z";
+
+export default function VerificationBadge({ badge, size = "sm" }) {
+  const meta = BADGE_META[badge];
+  if (!meta) return null;
+
+  const dimension = size === "lg" ? 20 : 18.75;
+
+  return (
+    <svg
+      width={dimension}
+      height={dimension}
+      viewBox="0 0 22 22"
+      aria-label={meta.title}
+      role="img"
+      style={{
+        display: "inline-block",
+        flex: "0 0 auto",
+        verticalAlign: "middle",
+        color: meta.color,
+        marginLeft: 2,
+      }}
+    >
+      <path d={SHAPE} fill="currentColor" />
+      <path d={CHECK} fill="#fff" />
+    </svg>
+  );
+}
