@@ -2262,3 +2262,9 @@ label {
 .rx-rank-up { color: var(--profile-success) !important; }
 .rx-rank-down { color: #F87171 !important; }
 .rx-rank-flat { color: var(--profile-muted) !important; }
+
+
+.rx-verification-badge { display: inline-block; flex: 0 0 auto; vertical-align: middle; margin-left: 2px; }
+.rx-verification-blue { color: #1d9bf0; --verification-check: #fff; }
+.rx-verification-red { color: #f4212e; --verification-check: #fff; }
+.rx-verification-gold { color: #e2b719; --verification-check: #fff; }
