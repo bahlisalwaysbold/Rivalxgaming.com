@@ -2,6 +2,7 @@
 // Replaces src/data/mockData.js everywhere it was used.
 
 import { supabase } from "./supabase.js";
+import { getEffectiveVerification } from "./verification.js";
 
 // ── Tournaments ──────────────────────────────────────────────
 
@@ -266,7 +267,7 @@ export async function fetchTournamentEntries(tournamentId) {
   if (!supabase) return [];
   const { data, error } = await supabase
     .from("entries")
-    .select("*, players(tag, avatar_url, squad_photo_url)")
+    .select("*, players(id, tag, avatar_url, squad_photo_url, verification_badge)")
     .eq("tournament_id", tournamentId);
   if (error) throw error;
   return data;
@@ -319,7 +320,7 @@ export async function fetchLeaderboard() {
   // Fetch all players so even new users with 0 matches appear
   const { data: players, error: playersError } = await supabase
     .from("players")
-    .select("id, tag, avatar_url, win_streak, created_at");
+    .select("id, tag, avatar_url, win_streak, created_at, verification_badge");
   if (playersError) throw playersError;
 
   const { data: matches, error: matchesError } = await supabase
@@ -357,8 +358,14 @@ export async function fetchLeaderboard() {
     }
   }
 
+  const allPlayers = players || [];
+  const playerMap = Object.fromEntries(allPlayers.map((player) => [player.id, player]));
   return Object.values(byPlayer)
-    .map((p) => ({ ...p, points: p.wins * 3 + p.tournamentsWon * 5 }))
+    .map((p) => ({
+      ...p,
+      points: p.wins * 3 + p.tournamentsWon * 5,
+      verification_badge: getEffectiveVerification(playerMap[p.id] || p, allPlayers, matches || []),
+    }))
     .sort((a, b) => b.points - a.points || b.wins - a.wins)
     .map((p, i) => ({ ...p, rank: i + 1 }));
 }
@@ -450,4 +457,32 @@ export async function deleteMvpMoment(id) {
   const { error } = await supabase.from("mvp_moments").delete().eq("id", id);
   if (error) throw error;
   return true;
+}
+
+export async function fetchVerificationPlayers() {
+  if (!supabase) return [];
+  const [{ data: players, error: playersError }, { data: matches, error: matchesError }] = await Promise.all([
+    supabase.from("players").select("id, tag, avatar_url, created_at, verification_badge"),
+    supabase.from("matches").select("id, player_id, player2_id, result, winner_id, eliminated_id, round, stage, played_at"),
+  ]);
+  if (playersError) throw playersError;
+  if (matchesError) throw matchesError;
+  return (players || []).map((player) => ({
+    ...player,
+    auto_verification_badge: getEffectiveVerification({ ...player, verification_badge: "none" }, players || [], matches || []),
+    effective_verification_badge: getEffectiveVerification(player, players || [], matches || []),
+  }));
+}
+
+export async function updatePlayerVerification(playerId, badge) {
+  if (!supabase) throw new Error("Supabase is not configured yet.");
+  if (!["none", "blue", "red", "gold"].includes(badge)) throw new Error("Invalid verification badge.");
+  const { data, error } = await supabase
+    .from("players")
+    .update({ verification_badge: badge })
+    .eq("id", playerId)
+    .select("id, tag, verification_badge")
+    .single();
+  if (error) throw error;
+  return data;
 }
