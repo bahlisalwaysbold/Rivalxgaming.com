@@ -272,12 +272,14 @@ export default function Profile() {
       <div className="rx-profile-shell">
         <section className="rx-profile-hero-new">
           <div className="rx-profile-banner" aria-label="Profile banner" style={bannerPhoto ? { backgroundImage: `linear-gradient(rgba(10,10,12,.42), rgba(10,10,12,.72)), url("${bannerPhoto}")` } : undefined}>
-            <div className="rx-profile-banner-lines" />
+            <div className="rx-profile-banner-lines" aria-hidden="true" />
             {isOwnProfile && (
-              <label className="rx-banner-change" aria-label="Change banner">
-                <span aria-hidden="true">↗</span>
-                <input type="file" accept="image/*" onChange={handleBannerChange} />
-              </label>
+              <>
+                <button type="button" className="rx-banner-change" aria-label="Change banner" onClick={() => document.getElementById("profile-banner-upload")?.click()}>
+                  <span aria-hidden="true">↗</span>
+                </button>
+                <input id="profile-banner-upload" className="rx-banner-upload-input" type="file" accept="image/*" onChange={handleBannerChange} />
+              </>
             )}
           </div>
 
@@ -318,8 +320,8 @@ export default function Profile() {
                 <strong>{rankLabel}</strong>
               </div>
               <div className="rx-rank-meta">
-                <span className="rx-rank-movement" aria-label={winStreak > 0 ? "Winning streak" : "No recent movement"}>
-                  <span aria-hidden="true">{winStreak > 0 ? "↑" : "→"}</span> {winStreak > 0 ? winStreak + " streak" : "No movement"}
+                <span className={winStreak > 0 ? "rx-rank-movement rx-rank-up" : losses > 0 ? "rx-rank-movement rx-rank-down" : "rx-rank-movement rx-rank-flat"} aria-label={winStreak > 0 ? "Positive movement" : losses > 0 ? "Negative movement" : "No recent movement"}>
+                  <span aria-hidden="true">{winStreak > 0 ? "↑" : losses > 0 ? "↓" : "→"}</span> {winStreak > 0 ? winStreak + " streak" : losses > 0 ? losses + " loss" + (losses === 1 ? "" : "es") : "No movement"}
                 </span>
                 <span>{wins * 3} pts</span>
               </div>
