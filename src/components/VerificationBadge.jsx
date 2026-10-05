@@ -1,9 +1,9 @@
 import React from "react";
 
 const BADGE_META = {
-  blue: { title: "Rival X Verified", color: "#1d9bf0" },
-  red: { title: "Rival X Elite Verified — unbeaten for 6+ years", color: "#f4212e" },
-  gold: { title: "Rival X Legend Verified — unbeaten for 3+ years", color: "#e2b719" },
+  blue: { title: "Rival X Verified" },
+  red: { title: "Rival X Elite Verified — unbeaten for 6+ years" },
+  gold: { title: "Rival X Legend Verified — unbeaten for 3+ years" },
 };
 
 const SHAPE =
@@ -25,13 +25,7 @@ export default function VerificationBadge({ badge, size = "sm" }) {
       viewBox="0 0 22 22"
       aria-label={meta.title}
       role="img"
-      style={{
-        display: "inline-block",
-        flex: "0 0 auto",
-        verticalAlign: "middle",
-        color: meta.color,
-        marginLeft: 2,
-      }}
+      className={"rx-verification-badge rx-verification-" + badge}
     >
       <path d={SHAPE} fill="currentColor" />
       <path d={CHECK} fill="var(--verification-check, #fff)" />
