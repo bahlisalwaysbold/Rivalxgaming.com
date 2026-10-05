@@ -147,11 +147,11 @@ export default function Navbar() {
           {isAdmin(user) && (
             <NavLink
               to="/admin"
-              className={({ isActive }) => `rx-nav-link${isActive ? " active" : ""}`}
+              className={({ isActive }) => `rx-nav-link rx-admin-nav-link${isActive ? " active" : ""}`}
               style={({ isActive }) => ({
                 fontSize: 14,
-                fontWeight: 700,
-                color: isActive ? "var(--red)" : "#ff6666",
+                fontWeight: 600,
+                color: isActive ? "var(--silver-bright)" : "var(--muted)",
               })}
             >
               Admin Portal
