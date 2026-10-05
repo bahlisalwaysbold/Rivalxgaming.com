@@ -34,7 +34,7 @@ export default function VerificationBadge({ badge, size = "sm" }) {
       }}
     >
       <path d={SHAPE} fill="currentColor" />
-      <path d={CHECK} fill="#fff" />
+      <path d={CHECK} fill="var(--verification-check, #fff)" />
     </svg>
   );
 }
