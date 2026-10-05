@@ -12,6 +12,7 @@ create table players (
   avatar_url text,
   squad_photo_url text,
   win_streak integer default 0,
+  verification_badge text not null default 'none' check (verification_badge in ('none', 'blue', 'red', 'gold')),
   created_at timestamptz default now()
 );
 
@@ -31,6 +32,10 @@ create policy "Players can insert their own row"
 create policy "Players can update their own row"
   on players for update
   using (auth.uid() = id);
+
+create policy "Admin can manage player verification"
+  on players for update
+  using (public.is_rivalx_admin());
 
 
 -- ─────────────────────────────────────────────
