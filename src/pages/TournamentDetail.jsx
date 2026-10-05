@@ -344,7 +344,7 @@ export default function TournamentDetail() {
         {/* Slot Progress */}
         <div style={{ marginTop: 20 }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>
-            <span>Confirmed Bracket Slots</span>
+            <span>Players Registered</span>
             <span style={{ fontWeight: 600, color: "var(--silver-bright)" }}>
               {memberEntries.length} / {tournament.slots} players
             </span>
