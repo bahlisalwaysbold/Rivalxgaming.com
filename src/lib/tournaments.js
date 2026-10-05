@@ -24,6 +24,11 @@ export function parseTournamentConditions(t) {
     squadType: "Dream Team (Max 3100)",
     connectionReq: "Stable 4G / Wi-Fi (Min 3-4 bars)",
     gracePeriod: "15 minutes",
+    paymentMethod: "bank_transfer",
+    bankName: "",
+    accountName: "",
+    accountNumber: "",
+    transferNote: "",
     rulesText: t.rules || "",
   };
 
@@ -75,6 +80,11 @@ export function serializeTournamentConditions(formData) {
     squadType: formData.squadType?.trim() || "Dream Team (Max 3100)",
     connectionReq: formData.connectionReq?.trim() || "Stable 4G / Wi-Fi (Min 3-4 bars)",
     gracePeriod: formData.gracePeriod?.trim() || "15 minutes",
+    paymentMethod: formData.paymentMethod || "bank_transfer",
+    bankName: formData.bankName?.trim() || "",
+    accountName: formData.accountName?.trim() || "",
+    accountNumber: formData.accountNumber?.trim() || "",
+    transferNote: formData.transferNote?.trim() || "Use your Rival X username as the transfer narration/reference where possible.",
     rulesText: formData.rulesText?.trim() || formData.rules?.trim() || "Single elimination knockout. Home and away or single leg as specified. Results submitted with screenshot proof within 15 minutes of match conclusion.",
   };
 
@@ -202,7 +212,7 @@ export function subscribeToEntryChanges(onChange) {
 // Creates the "pending" record before Paystack checkout opens. The
 // paystack-webhook Edge Function is the only thing that ever flips
 // this to "paid", using the same reference.
-export async function createPendingEntry({ tournamentId, playerId, paystackRef }) {
+export async function createPendingEntry({ tournamentId, playerId, paystackRef, paymentMethod = "paystack", paymentReference = null }) {
   if (!supabase) throw new Error("Supabase is not configured yet — see src/lib/supabase.js");
   const { data, error } = await supabase
     .from("entries")
@@ -210,6 +220,8 @@ export async function createPendingEntry({ tournamentId, playerId, paystackRef }
       tournament_id: tournamentId,
       player_id: playerId,
       paystack_ref: paystackRef,
+      payment_method: paymentMethod,
+      payment_reference: paymentReference,
       payment_status: "pending",
       application_status: "pending",
     })
@@ -243,6 +255,8 @@ export async function createFreeEntry({ tournamentId, playerId }) {
       tournament_id: tournamentId,
       player_id: playerId,
       paystack_ref: freeRef,
+      payment_method: "free",
+      payment_reference: null,
       payment_status: "paid",
       application_status: "pending",
     })
@@ -274,12 +288,20 @@ export async function fetchTournamentEntries(tournamentId) {
   return data;
 }
 
-// Admin: confirm or reject a player's application
+// Admin: confirm or reject a player's application.
+// Confirming also marks a bank-transfer payment as paid because the
+// admin is the person verifying the transfer manually.
 export async function updateEntryApplication(entryId, applicationStatus) {
   if (!supabase) throw new Error("Supabase is not configured yet.");
+  const updates = { application_status: applicationStatus };
+
+  if (applicationStatus === "confirmed") {
+    updates.payment_status = "paid";
+  }
+
   const { data, error } = await supabase
     .from("entries")
-    .update({ application_status: applicationStatus })
+    .update(updates)
     .eq("id", entryId)
     .select()
     .single();
