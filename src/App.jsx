@@ -12,6 +12,7 @@ import Register from "./pages/Register.jsx";
 import Login from "./pages/Login.jsx";
 import Admin from "./pages/Admin.jsx";
 import Mvp from "./pages/Mvp.jsx";
+import MatchHub from "./pages/MatchHub.jsx";
 
 export default function App() {
   const [loading, setLoading] = useState(true);
@@ -26,6 +27,7 @@ export default function App() {
         <Route path="/tournaments/:id" element={<TournamentDetail />} />
         <Route path="/leaderboard" element={<Leaderboard />} />
         <Route path="/mvp" element={<Mvp />} />
+        <Route path="/play" element={<MatchHub />} />
         <Route path="/profile" element={<Profile />} />
         <Route path="/profile/:id" element={<Profile />} />
         <Route path="/register" element={<Register />} />
