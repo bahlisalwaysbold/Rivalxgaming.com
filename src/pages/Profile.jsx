@@ -32,6 +32,7 @@ export default function Profile() {
   const [viewingUser, setViewingUser] = useState(null);
   const [referralStats, setReferralStats] = useState(null);
   const [deletingAccount, setDeletingAccount] = useState(false);
+  const [profileRank, setProfileRank] = useState(null);
 
   useEffect(() => {
     async function loadProfile() {
