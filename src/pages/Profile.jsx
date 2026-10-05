@@ -33,6 +33,9 @@ export default function Profile() {
   const [referralStats, setReferralStats] = useState(null);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [profileRank, setProfileRank] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
 
   useEffect(() => {
     async function loadProfile() {
@@ -131,7 +134,7 @@ export default function Profile() {
       }
     }
 
-    loadProfile();
+    loadProfile().finally(() => setLoading(false));
   }, [id]);
 
   async function checkUsername(value) {
@@ -182,7 +185,9 @@ export default function Profile() {
     const link = `${window.location.origin}/register?ref=${encodeURIComponent(code)}`;
     try {
       await navigator.clipboard.writeText(link);
+      setCopied(true);
       setMessage("Referral link copied.");
+      window.setTimeout(() => setCopied(false), 2000);
     } catch {
       setMessage(link);
     }
@@ -232,259 +237,176 @@ export default function Profile() {
     }
   }
 
+  const tier = verificationBadge === "gold" ? "legend" : verificationBadge === "blue" ? "blue" : "standard";
+  const matchesPlayed = Number(profileStats.find((s) => s.label === "Matches")?.value || 0);
+  const wins = Number(profileStats.find((s) => s.label === "Wins")?.value || 0);
+  const tournaments = Number(profileStats.find((s) => s.label === "Tournaments")?.value || 0);
+  const losses = Math.max(matchesPlayed - wins, 0);
+  const winRate = matchesPlayed >= 5 ? Math.round((wins / matchesPlayed) * 100) : null;
+  const rankLabel = matchesPlayed === 0 ? "Unranked" : profileRank ? "#" + profileRank : "—";
+  const accentBadge = tier === "legend" ? "LEGEND VERIFIED" : tier === "blue" ? "BLUE VERIFIED" : null;
+  const referralActive = Math.min(Number(referralStats?.active_referrals || 0), 100);
+  const referralPlay = Math.min(Number(referralStats?.active_play_rate || 0), 100);
+  const referralPlayers = Number(referralStats?.tournament_players || 0);
+  const referralTarget = Math.max(60, Math.ceil(Number(referralStats?.active_referrals || 0) * 0.6));
+
+  const scrollToSection = (tab, selector) => {
+    setActiveTab(tab);
+    document.querySelector(selector)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
-    <div>
-      {/* Hero */}
-      <div className={`rx-container rx-profile-hero rx-verified-profile rx-verified-profile-${verificationBadge}`} style={{ padding: "56px 24px 40px", borderBottom: "1px solid var(--border)" }}>
-        <div style={{ display: "flex", alignItems: "flex-end", gap: 24, flexWrap: "wrap" }}>
-          <div className="rx-profile-avatar" style={{ width: 96, flexShrink: 0 }}>
-            {avatar ? <img src={avatar} alt="Profile avatar" /> : <PlaceholderImage height={96} src="/images/icon.png" alt="Player avatar" />}
-          </div>
-          <div style={{ flex: 1, minWidth: 240 }}>
-            <div style={{ fontSize: 13, color: "var(--muted)", marginBottom: 6 }}>
-              {isOwnProfile ? "Player profile" : "Player profile"}
-            </div>
-            <h1
-              className="rx-display"
-              style={{
-                fontSize: 48,
-                fontWeight: 700,
-                lineHeight: 1,
-                margin: 0,
-                background: "linear-gradient(135deg, var(--silver-bright), #9ca0a6)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 10, maxWidth: "100%" }}>
-                <span style={{ overflowWrap: "anywhere" }}>{username}</span>
-                <VerificationBadge badge={verificationBadge} size="lg" />
-              </span>
-            </h1>
-            {verificationBadge !== "none" && (
-              <div className="rx-verification-status">
-                <VerificationBadge badge={verificationBadge} size="lg" />
-                <span>
-                  {verificationBadge === "blue"
-                    ? "Rival X Verified"
-                    : verificationBadge === "red"
-                    ? "Rival X Elite Verified"
-                    : "Rival X Legend Verified"}
-                </span>
-              </div>
-            )}
-
-            {(isOwnProfile && Number.isInteger(profileRank) && profileRank > 0 || winStreak > 0) && (
-              <div className="rx-profile-highlights">
-                {isOwnProfile && Number.isInteger(profileRank) && profileRank > 0 && (
-                  <div className="rx-profile-ranking-card">
-                    <span className="rx-profile-ranking-label">YOUR RIVAL X RANK</span>
-                    <strong>#{profileRank}</strong>
-                    <Link to="/leaderboard">View full rankings →</Link>
-                  </div>
-                )}
-                {winStreak > 0 && (
-                  <div className="rx-profile-streak">
-                    <span aria-hidden="true">🔥</span> {winStreak} win streak
-                  </div>
-                )}
-              </div>
-            )}
-
-            {isOwnProfile ? (
-              <button type="button" className="rx-btn-outline rx-settings-button" onClick={() => setSettingsOpen((open) => !open)}>
-                Profile settings
-              </button>
-            ) : (
-              <Link to="/leaderboard" className="rx-btn-outline rx-settings-button" style={{ display: "inline-block" }}>
-                ← Back to leaderboard
-              </Link>
+    <main data-tier={tier} className="rx-player-profile-page">
+      <div className="rx-profile-shell">
+        <section className="rx-profile-hero-new">
+          <div className="rx-profile-banner" aria-hidden="true">
+            <div className="rx-profile-banner-lines" />
+            {isOwnProfile && (
+              <label className="rx-banner-change" aria-label="Change banner">
+                <span aria-hidden="true">↗</span>
+                <input type="file" accept="image/*" onChange={handleSquadPhotoChange} />
+              </label>
             )}
           </div>
-        </div>
 
-        {isOwnProfile && settingsOpen && (
-          <form className="rx-profile-settings" onSubmit={saveSettings}>
-            <div>
-              <label htmlFor="profile-username">Username</label>
-              <input
-                id="profile-username"
-                value={username}
-                onChange={(event) => { setUsername(event.target.value); checkUsername(event.target.value); }}
-                minLength={3}
-                maxLength={24}
-                required
-              />
-              {availability === "available" && <small className="rx-available">✓ Username available</small>}
-              {availability === "taken" && <small className="rx-unavailable">✕ Username already taken</small>}
+          <div className="rx-profile-identity-row">
+            <div className="rx-profile-avatar-new">
+              {avatar ? <img src={avatar} alt="" /> : <PlaceholderImage height={120} src="/images/icon.png" alt="" />}
             </div>
-            <div>
-              <label htmlFor="profile-avatar">Profile picture</label>
-              <label className="rx-avatar-upload" htmlFor="profile-avatar">
-                <span aria-hidden="true">Camera + Choose an image</span>
-                <input id="profile-avatar" type="file" accept="image/*" onChange={handleAvatarChange} />
-              </label>
-            </div>
-            <div>
-              <label htmlFor="profile-squad">eFootball Squad Photo *</label>
-              <label className="rx-avatar-upload" htmlFor="profile-squad">
-                <span aria-hidden="true">📷 Upload your squad photo (required for tournaments)</span>
-                <input id="profile-squad" type="file" accept="image/*" onChange={handleSquadPhotoChange} />
-              </label>
-              {!squadPhoto && (
-                <small style={{ display: "block", marginTop: 6, fontSize: 11, color: "#facc15" }}>
-                  ⚠️ Required — you can't apply for tournaments without a squad photo.
-                </small>
+
+            <div className="rx-profile-identity">
+              <span className="rx-profile-kicker">RIVAL X PLAYER</span>
+              <h1>{username}</h1>
+              {accentBadge && (
+                <div className="rx-tier-badge">
+                  <VerificationBadge badge={verificationBadge} size="sm" />
+                  <span>{accentBadge}</span>
+                </div>
               )}
-            </div>
-            <button type="submit" className="rx-btn" disabled={availability === "taken"}>Save changes</button>
-
-            <div
-              style={{
-                gridColumn: "1 / -1",
-                marginTop: 4,
-                padding: 16,
-                border: "1px solid #4a1b20",
-                background: "rgba(216, 30, 39, 0.06)",
-              }}
-              className="rx-clip-sm"
-            >
-              <div style={{ color: "#ff8888", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-                DANGER ZONE
+              {tier === "standard" && isOwnProfile && (
+                <a className="rx-get-verified" href="#referrals" onClick={(e) => { e.preventDefault(); scrollToSection("referrals", "#referrals"); }}>
+                  Get verified →
+                </a>
+              )}
+              <div className="rx-profile-chips" aria-label="Player summary">
+                <span>{matchesPlayed} matches</span>
+                <span>{wins} wins</span>
+                <span>{losses} losses</span>
+                {winStreak > 0 && <span>{winStreak} win streak</span>}
               </div>
-              <p style={{ color: "var(--muted)", fontSize: 11, margin: "0 0 10px" }}>
-                Permanently delete your Rival X account, tournament entries, matches, and profile data.
+              <p className="rx-profile-bio">
+                {matchesPlayed ? wins + " wins across " + matchesPlayed + " official matches on Rival X." : "New to Rival X. Your competitive record starts with your first official match."}
               </p>
-              <button
-                type="button"
-                className="rx-btn"
-                onClick={handleDeleteAccount}
-                disabled={deletingAccount}
-                style={{ background: "#5b1118", border: "1px solid #ff4444", color: "#fff", fontSize: 12, padding: "9px 14px" }}
-              >
-                {deletingAccount ? "Deleting account…" : "Delete my account"}
-              </button>
+              {message && <div className="rx-profile-message-new" role="status">{message}</div>}
             </div>
-          </form>
-        )}
-        {message && <p className="rx-profile-message">{message}</p>}
-      </div>
 
-      {/* Squad photo display */}
-      {squadPhoto && (
-        <div className="rx-container" style={{ padding: "24px 24px 0" }}>
-          <div style={{ background: "var(--panel)", border: "1px solid var(--border)", padding: 16 }} className="rx-clip">
-            <div style={{ fontSize: 12, color: "var(--muted)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
-              eFootball Squad
-            </div>
-            <img src={squadPhoto} alt="eFootball squad" style={{ width: "100%", maxHeight: 300, objectFit: "cover", borderRadius: 4 }} />
+            <aside className="rx-profile-rank-card">
+              <div className="rx-profile-rank-top">
+                <span>RIVAL X RANK</span>
+                <strong>{rankLabel}</strong>
+              </div>
+              <div className="rx-rank-meta">
+                <span className="rx-rank-movement" aria-label={winStreak > 0 ? "Winning streak" : "No recent movement"}>
+                  <span aria-hidden="true">{winStreak > 0 ? "↑" : "→"}</span> {winStreak > 0 ? winStreak + " streak" : "No movement"}
+                </span>
+                <span>{wins * 3} pts</span>
+              </div>
+              <div className="rx-rank-actions">
+                <Link to="/leaderboard" className="rx-tier-primary">Full rankings</Link>
+                {isOwnProfile && <button type="button" className="rx-tier-outline" onClick={() => setSettingsOpen((open) => !open)}>Edit profile</button>}
+              </div>
+            </aside>
           </div>
-        </div>
-      )}
 
-      {/* Stat strip */}
-      <div className="rx-container" style={{ padding: 0 }}>
-        <div className="rx-profile-stats" style={{ display: "flex", borderBottom: "1px solid var(--border)" }}>
-          {profileStats.map((s, i) => (
-            <div
-              key={s.label}
-              style={{
-                flex: 1,
-                padding: "24px 20px",
-                borderLeft: i === 0 ? "none" : "1px solid var(--border)",
-              }}
-            >
-              <div className="rx-display" style={{ fontSize: 28, fontWeight: 700 }}>
-                {s.value}
+          {isOwnProfile && settingsOpen && (
+            <form className="rx-profile-settings-new" onSubmit={saveSettings}>
+              <div><label htmlFor="profile-username">Username</label><input id="profile-username" value={username} onChange={(event) => { setUsername(event.target.value); checkUsername(event.target.value); }} minLength={3} maxLength={24} required /></div>
+              <div><label htmlFor="profile-avatar">Profile picture</label><label className="rx-avatar-upload" htmlFor="profile-avatar"><span>Choose an image</span><input id="profile-avatar" type="file" accept="image/*" onChange={handleAvatarChange} /></label></div>
+              <div><label htmlFor="profile-squad">eFootball Squad Photo</label><label className="rx-avatar-upload" htmlFor="profile-squad"><span>Upload squad photo</span><input id="profile-squad" type="file" accept="image/*" onChange={handleSquadPhotoChange} /></label></div>
+              <button type="submit" className="rx-tier-primary" disabled={availability === "taken"}>Save changes</button>
+              <button type="button" className="rx-danger-link" onClick={handleDeleteAccount} disabled={deletingAccount}>{deletingAccount ? "Deleting…" : "Delete account"}</button>
+            </form>
+          )}
+        </section>
+
+        <nav className="rx-profile-tabs" aria-label="Profile sections">
+          <button className={activeTab === "overview" ? "is-active" : ""} onClick={() => scrollToSection("overview", "#overview")}>Overview</button>
+          <button className={activeTab === "matches" ? "is-active" : ""} onClick={() => scrollToSection("matches", "#matches")}>Matches</button>
+          <button className={activeTab === "achievements" ? "is-active" : ""} onClick={() => scrollToSection("achievements", "#achievements")}>Achievements</button>
+          {isOwnProfile && <button className={activeTab === "referrals" ? "is-active" : ""} onClick={() => scrollToSection("referrals", "#referrals")}>Referrals</button>}
+        </nav>
+
+        {loading ? (
+          <section className="rx-profile-loading" aria-label="Loading player profile">
+            <div className="rx-skeleton rx-skeleton-stat" /><div className="rx-skeleton rx-skeleton-stat" /><div className="rx-skeleton rx-skeleton-stat" /><div className="rx-skeleton rx-skeleton-stat" />
+            <div className="rx-skeleton rx-skeleton-panel" />
+          </section>
+        ) : (
+          <>
+            <section id="overview" className="rx-profile-section">
+              <div className="rx-profile-section-heading"><span className="rx-eyebrow">PLAYER RECORD</span><h2>Performance</h2></div>
+              <div className="rx-profile-stats-new">
+                <article><span>MATCHES</span><strong>{matchesPlayed}</strong><small>{matchesPlayed ? "Official matches" : "Play your first match"}</small></article>
+                <article><span>WINS</span><strong>{wins}</strong><small>{wins ? "Victories recorded" : "Your first win is waiting"}</small></article>
+                <article><span>WIN RATE</span><strong>{winRate === null ? "—" : winRate + "%"}</strong><small>{winRate === null ? "Shows after 5 matches" : "Across official matches"}</small></article>
+                <article><span>TOURNAMENTS</span><strong>{tournaments}</strong><small>{tournaments ? "Tournament entries" : "Enter a tournament"}</small></article>
               </div>
-              <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4 }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
-      </div>
+            </section>
 
-      {isOwnProfile && referralStats?.referral_code && (
-        <div className="rx-container" style={{ padding: "24px 24px 0" }}>
-          <div className="rx-referral-card rx-clip">
-            <div>
-              <div className="rx-eyebrow" style={{ marginBottom: 5 }}>RIVAL X REFERRALS</div>
-              <h2 className="rx-display" style={{ fontSize: 24, margin: 0 }}>Build your Blue Check</h2>
-              <p style={{ color: "var(--muted)", fontSize: 12, lineHeight: 1.6, margin: "8px 0 16px" }}>
-                Refer 100 active players, with at least 60% of those active referrals having played a Rival X tournament, to qualify for automatic Blue verification.
-              </p>
-            </div>
-
-            <div className="rx-referral-id-row">
-              <div>
-                <span className="rx-referral-label">YOUR REFERRAL ID</span>
-                <strong>{referralStats.referral_code}</strong>
+            <section id="matches" className="rx-profile-section">
+              <div className="rx-profile-section-heading"><span className="rx-eyebrow">RECENT FORM</span><h2>Matches</h2></div>
+              <div className="rx-profile-panel">
+                {profileMatches.length ? profileMatches.map((m, i) => (
+                  <div className="rx-match-row-new" key={i}>
+                    <span className={m.result === "W" ? "rx-result rx-win" : "rx-result rx-loss"}>{m.result}</span>
+                    <div><strong>vs {m.opp}</strong><small>{m.date}</small></div>
+                    <strong className="rx-match-score">{m.score}</strong>
+                  </div>
+                )) : (
+                  <div className="rx-empty-state"><strong>Your competitive record starts here.</strong><span>Play an official Rival X match to build your history.</span><Link to="/play" className="rx-tier-primary">Open Match Hub</Link></div>
+                )}
               </div>
-              <button type="button" className="rx-btn-outline" onClick={copyReferralLink}>
-                Copy invite link
-              </button>
-            </div>
+            </section>
 
-            <div className="rx-referral-progress">
-              <div><span>Active referrals</span><strong>{referralStats.active_referrals}/100</strong></div>
-              <div className="rx-referral-bar"><span style={{ width: `${Math.min((referralStats.active_referrals / 100) * 100, 100)}%` }} /></div>
-              <div><span>Tournament players</span><strong>{referralStats.tournament_players}/{Math.max(60, Math.ceil((referralStats.active_referrals || 0) * 0.6))}</strong></div>
-              <div className="rx-referral-bar"><span style={{ width: `${Math.min(referralStats.active_play_rate || 0, 100)}%` }} /></div>
-            </div>
-
-            {referralStats.qualifies_for_referral_blue && (
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, color: "#1d9bf0", fontSize: 12, fontWeight: 700 }}>
-                <VerificationBadge badge="blue" /> Referral Blue verification unlocked.
+            <section id="achievements" className="rx-profile-section">
+              <div className="rx-profile-section-heading"><span className="rx-eyebrow">MILESTONES</span><h2>Achievements</h2></div>
+              <div className="rx-achievements-grid">
+                <article className={wins > 0 ? "is-earned" : ""}><span>01</span><strong>First Win</strong><small>{wins > 0 ? "Unlocked" : "Win your first official match"}</small></article>
+                <article className={winStreak >= 3 ? "is-earned" : ""}><span>03</span><strong>Three in a Row</strong><small>{winStreak >= 3 ? "Unlocked" : "Reach a 3-win streak"}</small></article>
+                <article className={tournaments > 0 ? "is-earned" : ""}><span>RX</span><strong>Tournament Ready</strong><small>{tournaments > 0 ? "Unlocked" : "Enter your first tournament"}</small></article>
               </div>
+            </section>
+
+            {isOwnProfile && referralStats?.referral_code && (
+              <section id="referrals" className="rx-profile-section">
+                <div className="rx-profile-section-heading"><span className="rx-eyebrow">VERIFICATION PATH</span><h2>Build your Blue Check</h2></div>
+                <div className="rx-referral-layout-new">
+                  <div className="rx-referral-progress-card">
+                    <div className="rx-progress-line"><span>Active referrals</span><strong>{referralActive} / 100</strong></div>
+                    <div className="rx-progress-track"><span style={{ width: (referralActive ? Math.max(2, referralActive) : 0) + "%" }} /></div>
+                    <div className="rx-progress-line"><span>Tournament players</span><strong>{referralPlayers} / {referralTarget}</strong></div>
+                    <div className="rx-progress-track rx-progress-blue"><span style={{ width: (referralPlay ? Math.max(2, referralPlay) : 0) + "%" }} /></div>
+                    <p>{referralStats.qualifies_for_referral_blue ? "Blue verification unlocked." : "Refer active players and get them playing to unlock Blue verification."}</p>
+                  </div>
+                  <div className="rx-referral-id-card">
+                    <span className="rx-eyebrow">YOUR REFERRAL ID</span>
+                    <strong>{referralStats.referral_code}</strong>
+                    <button type="button" className="rx-tier-primary" onClick={copyReferralLink} aria-live="polite">{copied ? "Copied" : "Copy invite link"}</button>
+                    <a className="rx-tier-outline" href={"https://wa.me/?text=" + encodeURIComponent("Join me on Rival X: " + window.location.origin + "/register?ref=" + referralStats.referral_code)} target="_blank" rel="noreferrer">Share on WhatsApp</a>
+                  </div>
+                </div>
+              </section>
             )}
-          </div>
-        </div>
-      )}
 
-      {/* Match history */}
-      <div className="rx-container rx-match-history" style={{ padding: "40px 24px", maxWidth: 640 }}>
-        <h2 className="rx-display" style={{ fontSize: 20, fontWeight: 600, margin: "0 0 16px" }}>
-          Recent matches
-        </h2>
-        {profileMatches.length ? profileMatches.map((m, i) => (
-          <div
-            key={i}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 16,
-              padding: "14px 0",
-              borderTop: "1px solid var(--panel-2)",
-            }}
-          >
-            <div
-              className="rx-display"
-              style={{
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 14,
-                fontWeight: 700,
-                color: m.result === "W" ? "#0a0a0c" : "var(--silver-bright)",
-                background: m.result === "W" ? "var(--red)" : "var(--panel-2)",
-                flexShrink: 0,
-              }}
-            >
-              {m.result}
-            </div>
-            <div style={{ flex: 1, fontSize: 14, color: "var(--silver)" }}>vs {m.opp}</div>
-            <div className="rx-display" style={{ fontSize: 16, fontWeight: 600 }}>
-              {m.score}
-            </div>
-            <div style={{ fontSize: 12, color: "var(--muted)", width: 48, textAlign: "right" }}>
-              {m.date}
-            </div>
-          </div>
-        )) : (
-          <p className="rx-empty-matches">No matches played yet.</p>
+            {squadPhoto && (
+              <section className="rx-profile-section rx-squad-section">
+                <div className="rx-profile-section-heading"><span className="rx-eyebrow">GAME PROFILE</span><h2>eFootball Squad</h2></div>
+                <img src={squadPhoto} alt={username + "'s eFootball squad"} />
+              </section>
+            )}
+          </>
         )}
       </div>
-    </div>
+    </main>
   );
-}
+}}
