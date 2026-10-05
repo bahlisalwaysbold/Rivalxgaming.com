@@ -1674,3 +1674,173 @@ label {
     justify-content: center;
   }
 }
+
+/* ── Verified profile tiers ───────────────────────────────── */
+.rx-verified-profile {
+  position: relative;
+  overflow: hidden;
+  isolation: isolate;
+  transition: border-color 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+
+.rx-verified-profile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+}
+
+.rx-verified-profile-blue {
+  border-bottom-color: rgba(29, 155, 240, 0.55) !important;
+  background:
+    radial-gradient(circle at 86% 14%, rgba(29, 155, 240, 0.14), transparent 28%),
+    linear-gradient(180deg, rgba(29, 155, 240, 0.035), transparent 65%);
+  box-shadow: inset 0 -1px 0 rgba(29, 155, 240, 0.18);
+}
+
+.rx-verified-profile-blue::before {
+  opacity: 1;
+  background: linear-gradient(90deg, transparent, rgba(29, 155, 240, 0.18), transparent);
+  height: 1px;
+  top: auto;
+  bottom: 0;
+  animation: rx-verified-sweep 4s linear infinite;
+}
+
+.rx-verified-profile-red {
+  border-bottom-color: rgba(244, 33, 46, 0.65) !important;
+  background:
+    radial-gradient(circle at 88% 10%, rgba(244, 33, 46, 0.2), transparent 30%),
+    radial-gradient(circle at 16% 88%, rgba(244, 33, 46, 0.08), transparent 24%),
+    linear-gradient(180deg, rgba(244, 33, 46, 0.06), transparent 70%);
+  box-shadow:
+    inset 0 -1px 0 rgba(244, 33, 46, 0.2),
+    0 18px 44px rgba(244, 33, 46, 0.08);
+}
+
+.rx-verified-profile-red::before {
+  opacity: 1;
+  inset: auto 0 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(244, 33, 46, 0.8), transparent);
+  animation: rx-verified-sweep 3.2s linear infinite;
+}
+
+.rx-verified-profile-gold {
+  border-bottom-color: rgba(226, 183, 25, 0.82) !important;
+  background:
+    radial-gradient(circle at 86% 12%, rgba(226, 183, 25, 0.27), transparent 32%),
+    radial-gradient(circle at 18% 86%, rgba(226, 183, 25, 0.12), transparent 28%),
+    linear-gradient(180deg, rgba(226, 183, 25, 0.075), transparent 72%);
+  box-shadow:
+    inset 0 -1px 0 rgba(226, 183, 25, 0.24),
+    0 20px 54px rgba(226, 183, 25, 0.12);
+}
+
+.rx-verified-profile-gold::before {
+  opacity: 1;
+  inset: 0;
+  background:
+    linear-gradient(120deg, transparent 0%, rgba(255, 255, 255, 0.05) 42%, transparent 54%),
+    radial-gradient(circle at 50% 0%, rgba(226, 183, 25, 0.08), transparent 42%);
+}
+
+.rx-verification-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 10px;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  background: rgba(10, 10, 12, 0.42);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  width: fit-content;
+}
+
+.rx-verified-profile-blue .rx-verification-status {
+  color: #62bdf5;
+  border-color: rgba(29, 155, 240, 0.38);
+  background: rgba(29, 155, 240, 0.08);
+}
+
+.rx-verified-profile-red .rx-verification-status {
+  color: #ff737d;
+  border-color: rgba(244, 33, 46, 0.42);
+  background: rgba(244, 33, 46, 0.1);
+}
+
+.rx-verified-profile-gold .rx-verification-status {
+  color: #f1cf58;
+  border-color: rgba(226, 183, 25, 0.48);
+  background: rgba(226, 183, 25, 0.11);
+}
+
+.rx-profile-ranking-card {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  column-gap: 12px;
+  align-items: end;
+  margin-top: 12px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  background: rgba(10, 10, 12, 0.5);
+  min-width: 180px;
+}
+
+.rx-profile-ranking-label {
+  grid-column: 1 / -1;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.09em;
+  margin-bottom: 2px;
+}
+
+.rx-profile-ranking-card strong {
+  font-family: "Rajdhani", sans-serif;
+  font-size: 25px;
+  line-height: 1;
+  color: var(--silver-bright);
+}
+
+.rx-profile-ranking-card a {
+  align-self: center;
+  color: var(--muted);
+  font-size: 10px;
+  text-decoration: none;
+}
+
+.rx-profile-ranking-card a:hover {
+  color: var(--silver-bright);
+}
+
+.rx-verified-profile-blue .rx-profile-ranking-card {
+  border-color: rgba(29, 155, 240, 0.28);
+  box-shadow: 0 8px 22px rgba(29, 155, 240, 0.06);
+}
+
+.rx-verified-profile-red .rx-profile-ranking-card {
+  border-color: rgba(244, 33, 46, 0.32);
+  box-shadow: 0 8px 24px rgba(244, 33, 46, 0.07);
+}
+
+.rx-verified-profile-gold .rx-profile-ranking-card {
+  border-color: rgba(226, 183, 25, 0.38);
+  box-shadow: 0 10px 28px rgba(226, 183, 25, 0.1);
+}
+
+@keyframes rx-verified-sweep {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(100%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rx-verified-profile::before {
+    animation: none !important;
+  }
+}
