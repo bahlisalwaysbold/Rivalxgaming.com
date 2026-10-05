@@ -53,6 +53,11 @@ const blankForm = {
   gracePeriod: "15 minutes",
   rulesText:
     "Single elimination knockout. Both players must capture final match score screenshot. Winner submits score to tournament admin lobby within 15 minutes of match completion.",
+  paymentMethod: "bank_transfer",
+  bankName: "",
+  accountName: "",
+  accountNumber: "",
+  transferNote: "Use your Rival X username as the transfer narration/reference where possible.",
   bannerUrl: "/images/3.jpg",
 };
 
@@ -311,6 +316,10 @@ export default function Admin() {
     setErrorMsg(null);
 
     try {
+      if (Number(form.entry_fee) > 0 && (!form.bankName?.trim() || !form.accountName?.trim() || !form.accountNumber?.trim())) {
+        throw new Error("Add the bank name, account name, and account number for paid tournaments.");
+      }
+
       const created = await createTournament(form);
       setTournaments((prev) => [created, ...prev]);
       setMessage(`Tournament "${form.name}" posted successfully! Live on site.`);
@@ -868,6 +877,68 @@ export default function Admin() {
             </div>
           </div>
 
+          {/* SECTION 4: PAYMENT DETAILS */}
+          <div style={{ background: "var(--panel)", border: "1px solid var(--border)", padding: 24 }} className="rx-clip">
+            <h2 className="rx-display" style={{ fontSize: 20, fontWeight: 700, margin: "0 0 8px" }}>
+              4. Bank Transfer Payment
+            </h2>
+            <p style={{ color: "var(--muted)", fontSize: 12, lineHeight: 1.6, margin: "0 0 18px" }}>
+              Paid tournaments currently use manual bank transfer. Players will see these details before submitting their transfer. You confirm the payment from the Applications tab.
+            </p>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 16, marginBottom: 16 }}>
+              <div>
+                <label>Payment Method</label>
+                <input value="Bank Transfer" readOnly />
+              </div>
+              <div>
+                <label>Bank Name  *</label>
+                <input
+                  value={form.bankName}
+                  onChange={(e) => updateField("bankName", e.target.value)}
+                  placeholder="e.g. Access Bank"
+                  required={Number(form.entry_fee) > 0}
+                />
+              </div>
+              <div>
+                <label>Account Number *</label>
+                <input
+                  value={form.accountNumber}
+                  onChange={(e) => updateField("accountNumber", e.target.value.replace(/\D/g, "").slice(0, 20))}
+                  placeholder="0123456789"
+                  inputMode="numeric"
+                  required={Number(form.entry_fee) > 0}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: 16 }}>
+              <div>
+                <label>Account Name *</label>
+                <input
+                  value={form.accountName}
+                  onChange={(e) => updateField("accountName", e.target.value)}
+                  placeholder="Rival X"
+                  required={Number(form.entry_fee) > 0}
+                />
+              </div>
+              <div>
+                <label>Transfer Instructions / Note</label>
+                <input
+                  value={form.transferNote}
+                  onChange={(e) => updateField("transferNote", e.target.value)}
+                  placeholder="Use your Rival X username as the transfer narration/reference."
+                />
+              </div>
+            </div>
+
+            {Number(form.entry_fee) === 0 && (
+              <div style={{ marginTop: 12, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>
+                ✓ FREE TO ENTER — bank details will not be shown to players.
+              </div>
+            )}
+          </div>
+
           {/* SECTION 4: Match Conditions & In-Game Regulations */}
           <div style={{ background: "var(--panel)", border: "1px solid var(--border)", padding: 24 }} className="rx-clip">
             <h2 className="rx-display" style={{ fontSize: 20, fontWeight: 700, margin: "0 0 18px" }}>
@@ -1216,8 +1287,17 @@ export default function Admin() {
                             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                               <span style={{ fontWeight: 700 }}>{entry.players?.tag || "Unknown"}</span>
                               <span style={{ fontSize: 11, color: "var(--muted)" }}>
-                                {entry.payment_status === "paid" ? "Paid" : "Payment pending"}
+                                {entry.payment_status === "paid"
+                                  ? "Paid"
+                                  : entry.payment_method === "bank_transfer"
+                                  ? "Transfer awaiting confirmation"
+                                  : "Payment pending"}
                               </span>
+                              {entry.payment_method === "bank_transfer" && entry.payment_reference && (
+                                <span style={{ fontSize: 11, color: "var(--silver)" }}>
+                                  Ref: <strong>{entry.payment_reference}</strong>
+                                </span>
+                              )}
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                               <span
@@ -1242,7 +1322,7 @@ export default function Admin() {
                                     onClick={() => handleApplication(entry.id, "confirmed")}
                                     disabled={updatingEntry === entry.id}
                                   >
-                                    Confirm
+                                    {entry.payment_status === "paid" ? "Confirm" : "Confirm payment"}
                                   </button>
                                   <button
                                     type="button"
