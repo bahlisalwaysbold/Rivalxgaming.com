@@ -11,7 +11,6 @@ import {
   fetchTournamentEntries,
   fetchTournamentMatches,
 } from "../lib/tournaments.js";
-import { payTournamentEntry, generatePaystackRef } from "../lib/paystack.js";
 
 export default function TournamentDetail() {
   const { id } = useParams();
@@ -24,6 +23,8 @@ export default function TournamentDetail() {
   const [matches, setMatches] = useState([]);
   const [user, setUser] = useState(null);
   const [userEntry, setUserEntry] = useState(null);
+  const [bankTransferOpen, setBankTransferOpen] = useState(false);
+  const [transferReference, setTransferReference] = useState("");
 
   useEffect(() => {
     let active = true;
@@ -116,6 +117,8 @@ export default function TournamentDetail() {
   const isFree = Number(tournament.entry_fee) === 0;
   const full = tournament.slotsFilled >= tournament.slots;
   const cond = tournament.conditions || {};
+  const paymentMethod = cond.paymentMethod || "bank_transfer";
+  const isBankTransfer = !isFree && paymentMethod === "bank_transfer";
 
   // Registration deadline check
   const now = new Date();
@@ -182,17 +185,56 @@ export default function TournamentDetail() {
         return;
       }
 
-      const ref = generatePaystackRef();
-      await createPendingEntry({ tournamentId: id, playerId: user.id, paystackRef: ref });
-      await payTournamentEntry({
-        email: user.email,
-        amountNaira: tournament.entry_fee,
-        reference: ref,
-        onSuccess: () => setStatus("paid"),
-        onClose: () => setStatus("cancelled"),
-      });
+      if (isBankTransfer) {
+        if (!cond.bankName || !cond.accountName || !cond.accountNumber) {
+          setStatus("Bank transfer details haven't been configured for this tournament yet.");
+          return;
+        }
+        setTransferReference("");
+        setBankTransferOpen(true);
+        return;
+      }
+
+      setStatus("This tournament payment method is not currently available.");
     } catch (err) {
       setStatus(err.message || "Unable to start registration.");
+    } finally {
+      setEntering(false);
+    }
+  }
+
+  async function handleSubmitBankTransfer() {
+    if (!user) {
+      navigate("/login");
+      return;
+    }
+
+    const cleanReference = transferReference.trim();
+    if (cleanReference.length < 3) {
+      setStatus("Enter your bank transfer transaction/reference number.");
+      return;
+    }
+
+    setEntering(true);
+    setStatus(null);
+    try {
+      const ref = typeof crypto !== "undefined" && crypto.randomUUID
+        ? "BANK-" + crypto.randomUUID()
+        : "BANK-" + Date.now() + "-" + Math.random().toString(36).slice(2);
+
+      const entry = await createPendingEntry({
+        tournamentId: id,
+        playerId: user.id,
+        paystackRef: ref,
+        paymentMethod: "bank_transfer",
+        paymentReference: cleanReference,
+      });
+
+      setEntries((prev) => (prev.some((item) => item.id === entry.id) ? prev : [...prev, entry]));
+      setBankTransferOpen(false);
+      setStatus("bank-transfer-pending");
+    } catch (err) {
+      setStatus(err.message || "Unable to submit your bank transfer.");
     } finally {
       setEntering(false);
     }
@@ -580,6 +622,8 @@ export default function TournamentDetail() {
                   ? "✓ You're confirmed for this tournament!"
                   : userEntry.application_status === "rejected"
                   ? "✕ Your application was rejected."
+                  : userEntry.payment_method === "bank_transfer"
+                  ? "⏳ Transfer submitted. We're waiting for Rival X to confirm your payment."
                   : "⏳ You're registered. Your Match Hub room will appear when the round is generated."}
               </span>
               {userEntry.application_status !== "rejected" && (
@@ -615,15 +659,75 @@ export default function TournamentDetail() {
               : isCompleted
               ? "Tournament Completed"
               : entering
-              ? (isFree ? "Joining…" : "Opening Paystack Checkout…")
+              ? "Loading…"
               : isFree
               ? "Join Free Tournament"
-              : `Pay Entry Fee & Join (₦${tournament.entry_fee.toLocaleString()})`}
+              : "View Bank Details & Join"}
           </button>
         )}
 
+        {isBankTransfer && !userEntry && bankTransferOpen && (
+          <div
+            style={{
+              background: "var(--panel)",
+              border: "1px solid var(--red)",
+              padding: 20,
+              marginTop: 16,
+            }}
+            className="rx-clip"
+          >
+            <div className="rx-eyebrow" style={{ color: "var(--red)", marginBottom: 6 }}>BANK TRANSFER</div>
+            <h3 className="rx-display" style={{ fontSize: 20, margin: "0 0 8px" }}>
+              Pay ₦{Number(tournament.entry_fee).toLocaleString()} to join
+            </h3>
+            <p style={{ color: "var(--muted)", fontSize: 12, lineHeight: 1.6, margin: "0 0 16px" }}>
+              Transfer the exact entry fee to the account below. After payment, enter your transaction/reference number so Rival X can verify it manually.
+            </p>
+
+            <div style={{ display: "grid", gap: 8, marginBottom: 16 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "10px 12px", background: "var(--bg)", border: "1px solid var(--border)" }}>
+                <span style={{ color: "var(--muted)", fontSize: 12 }}>Bank</span>
+                <strong style={{ fontSize: 13, textAlign: "right" }}>{cond.bankName}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "10px 12px", background: "var(--bg)", border: "1px solid var(--border)" }}>
+                <span style={{ color: "var(--muted)", fontSize: 12 }}>Account name</span>
+                <strong style={{ fontSize: 13, textAlign: "right" }}>{cond.accountName}</strong>
+              </div>
+              <div style={{ display: "flex", justifyContent: "space-between", gap: 16, padding: "10px 12px", background: "var(--bg)", border: "1px solid var(--border)" }}>
+                <span style={{ color: "var(--muted)", fontSize: 12 }}>Account number</span>
+                <strong style={{ fontSize: 15, letterSpacing: "0.06em", textAlign: "right" }}>{cond.accountNumber}</strong>
+              </div>
+            </div>
+
+            {cond.transferNote && (
+              <div style={{ color: "#facc15", fontSize: 12, lineHeight: 1.6, marginBottom: 14 }}>
+                <strong>NOTE:</strong> {cond.transferNote}
+              </div>
+            )}
+
+            <label htmlFor="bank-transfer-reference">Transfer transaction/reference number</label>
+            <input
+              id="bank-transfer-reference"
+              value={transferReference}
+              onChange={(e) => setTransferReference(e.target.value)}
+              placeholder="e.g. 1234567890"
+              maxLength={80}
+              autoComplete="off"
+            />
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginTop: 14 }}>
+              <button type="button" className="rx-btn" onClick={handleSubmitBankTransfer} disabled={entering}>
+                {entering ? "Submitting…" : "I've made the transfer"}
+              </button>
+              <button type="button" className="rx-btn-outline" onClick={() => setBankTransferOpen(false)} disabled={entering}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+
         <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 10 }}>
-          Secured by Paystack — card, bank transfer, and USSD accepted. Your payment is verified server-side.
+          Paid tournaments currently use manual bank transfer. Payments are reviewed by Rival X before your place is confirmed.
         </p>
 
         {status === "paid" && (
@@ -638,7 +742,23 @@ export default function TournamentDetail() {
             }}
             className="rx-clip"
           >
-            ✓ Payment received — your application is now pending admin confirmation. Check your profile for status.
+            ✓ Payment received — your application is now pending admin confirmation.
+          </div>
+        )}
+
+        {status === "bank-transfer-pending" && (
+          <div
+            style={{
+              background: "rgba(250, 204, 21, 0.12)",
+              border: "1px solid #facc15",
+              color: "#facc15",
+              padding: "14px 18px",
+              marginTop: 16,
+              fontSize: 14,
+            }}
+            className="rx-clip"
+          >
+            ⏳ Transfer submitted. Rival X will verify your payment manually. Your slot is not counted until the payment is confirmed.
           </div>
         )}
 
