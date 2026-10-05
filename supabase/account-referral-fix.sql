@@ -8,9 +8,10 @@ alter table public.players
 alter table public.players
   add column if not exists last_active_at timestamptz not null default now();
 
+-- Existing players start from their account creation date, so the migration
+-- itself does not falsely mark everyone as recently active.
 update public.players
-set referral_code = 'RX-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8))
-where referral_code is null;
+set last_active_at = created_at;
 
 alter table public.players
   alter column referral_code set default ('RX-' || upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8)));
