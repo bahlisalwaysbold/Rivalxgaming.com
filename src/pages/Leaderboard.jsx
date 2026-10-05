@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchLeaderboard } from "../lib/tournaments.js";
+import VerificationBadge from "../components/VerificationBadge.jsx";
 
 export default function Leaderboard() {
   const [leaderboard, setLeaderboard] = useState([]);
@@ -79,7 +80,7 @@ export default function Leaderboard() {
                 {p.rank}
               </span>
               <span style={{ fontSize: 14, fontWeight: 600 }}>
-                {p.tag}
+                {p.tag} <VerificationBadge badge={p.verification_badge} />
                 {p.wins === 0 && p.losses === 0 && (
                   <span style={{ fontSize: 10, color: "var(--muted)", marginLeft: 6, fontWeight: 400 }}>
                     (new)
