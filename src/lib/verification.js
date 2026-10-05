@@ -58,7 +58,7 @@ export function qualifiesForBlueBadge(player, players, matches, now = new Date()
   return firstTop2 && secondTop2;
 }
 
-export function calculateAutomaticVerification(player, players, matches, now = new Date()) {
+export function calculateAutomaticVerification(player, players, matches, now = new Date(), referralQualified = false) {
   if (!player?.created_at) return "none";
   const createdAt = new Date(player.created_at);
   if (Number.isNaN(createdAt.getTime())) return "none";
@@ -69,11 +69,11 @@ export function calculateAutomaticVerification(player, players, matches, now = n
   const threeYearsAgo = yearsAgo(now, 3);
   if (createdAt <= threeYearsAgo && !hasLossSince(player.id, matches, threeYearsAgo)) return "gold";
 
-  return qualifiesForBlueBadge(player, players, matches, now) ? "blue" : "none";
+  return referralQualified || qualifiesForBlueBadge(player, players, matches, now) ? "blue" : "none";
 }
 
-export function getEffectiveVerification(player, players, matches, now = new Date()) {
+export function getEffectiveVerification(player, players, matches, now = new Date(), referralQualified = false) {
   return player?.verification_badge && player.verification_badge !== "none"
     ? player.verification_badge
-    : calculateAutomaticVerification(player, players, matches, now);
+    : calculateAutomaticVerification(player, players, matches, now, referralQualified);
 }
