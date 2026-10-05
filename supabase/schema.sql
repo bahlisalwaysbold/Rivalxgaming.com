@@ -37,6 +37,23 @@ create policy "Admin can manage player verification"
   on players for update
   using (public.is_rivalx_admin());
 
+create or replace function public.guard_player_verification_fields()
+returns trigger
+language plpgsql
+as $
+begin
+  if not public.is_rivalx_admin() and new.verification_badge is distinct from old.verification_badge then
+    raise exception 'Only Rival X administrators can change verification badges';
+  end if;
+  return new;
+end;
+$;
+
+create trigger protect_player_verification_badge
+before update on players
+for each row
+execute function public.guard_player_verification_fields();
+
 
 -- ─────────────────────────────────────────────
 -- TOURNAMENTS
