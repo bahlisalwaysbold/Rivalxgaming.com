@@ -672,6 +672,11 @@ export default function Admin() {
                   placeholder="2000"
                   required
                 />
+                {Number(form.entry_fee) === 0 && (
+                  <div style={{ marginTop: 6, fontSize: 11, color: "#4ade80", fontWeight: 700 }}>
+                    ✓ FREE TO ENTER — players can join without Paystack payment
+                  </div>
+                )}
               </div>
 
               <div>
