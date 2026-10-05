@@ -2252,3 +2252,13 @@ label {
   .rx-header-actions > .rx-btn-outline { display: none !important; }
   .rx-header-inner > .rx-menu-toggle { margin-left: 0; }
 }
+
+
+.rx-banner-change {
+  border: 1px solid var(--profile-border);
+  font: inherit;
+}
+.rx-banner-upload-input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.rx-rank-up { color: var(--profile-success) !important; }
+.rx-rank-down { color: #F87171 !important; }
+.rx-rank-flat { color: var(--profile-muted) !important; }
