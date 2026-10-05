@@ -1589,3 +1589,88 @@ label {
     align-items: flex-start;
   }
 }
+
+
+/* ── Referral dashboard ──────────────────────────────────── */
+.rx-referral-card {
+  padding: 22px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(29, 155, 240, 0.10), transparent 35%),
+    var(--panel);
+  border: 1px solid var(--border);
+}
+
+.rx-referral-id-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+}
+
+.rx-referral-id-row strong {
+  display: block;
+  margin-top: 3px;
+  font-family: "Rajdhani", sans-serif;
+  font-size: 24px;
+  letter-spacing: 0.08em;
+  color: #1d9bf0;
+}
+
+.rx-referral-label {
+  display: block;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+}
+
+.rx-referral-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 18px;
+}
+
+.rx-referral-progress > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.rx-referral-progress strong {
+  color: var(--silver-bright);
+  font-size: 12px;
+}
+
+.rx-referral-bar {
+  height: 5px;
+  margin-top: -8px;
+  overflow: hidden;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+}
+
+.rx-referral-bar span {
+  display: block;
+  height: 100%;
+  background: #1d9bf0;
+  transition: width 0.35s ease;
+}
+
+@media (max-width: 560px) {
+  .rx-referral-card {
+    padding: 17px;
+  }
+
+  .rx-referral-id-row .rx-btn-outline {
+    width: 100%;
+    justify-content: center;
+  }
+}
