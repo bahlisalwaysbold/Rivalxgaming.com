@@ -21,6 +21,7 @@ export default function Profile() {
   const [username, setUsername] = useState("Player");
   const [avatar, setAvatar] = useState(null);
   const [squadPhoto, setSquadPhoto] = useState(null);
+  const [bannerPhoto, setBannerPhoto] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [availability, setAvailability] = useState(null);
   const [message, setMessage] = useState(null);
@@ -54,6 +55,7 @@ export default function Profile() {
           setUsername(currentUser?.user_metadata?.username || currentUser?.email?.split("@")[0] || "Player");
           setAvatar(currentUser ? localStorage.getItem(`rivalx_avatar_${currentUser.id}`) : null);
           setSquadPhoto(currentUser ? localStorage.getItem(`rivalx_squad_${currentUser.id}`) : null);
+          setBannerPhoto(currentUser ? localStorage.getItem(`rivalx_banner_${currentUser.id}`) : null);
 
           if (currentUser) {
             await ensurePlayerRow(currentUser);
@@ -131,6 +133,7 @@ export default function Profile() {
         setUsername(localStorage.getItem("rivalx_username") || "Player");
         setAvatar(localStorage.getItem("rivalx_avatar") || null);
         setSquadPhoto(localStorage.getItem("rivalx_squad") || null);
+        setBannerPhoto(localStorage.getItem("rivalx_banner") || null);
       }
     }
 
@@ -179,6 +182,14 @@ export default function Profile() {
     reader.readAsDataURL(file);
   }
 
+  function handleBannerChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setBannerPhoto(reader.result);
+    reader.readAsDataURL(file);
+  }
+
   async function copyReferralLink() {
     const code = referralStats?.referral_code;
     if (!code) return;
@@ -219,6 +230,7 @@ export default function Profile() {
         if (error) throw error;
         if (avatar) localStorage.setItem(`rivalx_avatar_${user.id}`, avatar);
         if (squadPhoto) localStorage.setItem(`rivalx_squad_${user.id}`, squadPhoto);
+        if (bannerPhoto) localStorage.setItem(`rivalx_banner_${user.id}`, bannerPhoto);
 
         // Also update the players table
         const updates = { tag: username.trim() };
@@ -259,12 +271,12 @@ export default function Profile() {
     <main data-tier={tier} className="rx-player-profile-page">
       <div className="rx-profile-shell">
         <section className="rx-profile-hero-new">
-          <div className="rx-profile-banner" aria-hidden="true">
+          <div className="rx-profile-banner" aria-label="Profile banner" style={bannerPhoto ? { backgroundImage: `linear-gradient(rgba(10,10,12,.42), rgba(10,10,12,.72)), url("${bannerPhoto}")` } : undefined}>
             <div className="rx-profile-banner-lines" />
             {isOwnProfile && (
               <label className="rx-banner-change" aria-label="Change banner">
                 <span aria-hidden="true">↗</span>
-                <input type="file" accept="image/*" onChange={handleSquadPhotoChange} />
+                <input type="file" accept="image/*" onChange={handleBannerChange} />
               </label>
             )}
           </div>
