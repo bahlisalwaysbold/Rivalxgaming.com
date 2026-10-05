@@ -16,10 +16,12 @@ import {
   fetchMvpMoments,
   fetchVerificationPlayers,
   updatePlayerVerification,
+} from "../lib/tournaments.js";
+import {
   generateMatchRooms,
   fetchTournamentMatchRooms,
   resolveMatchRoom,
-} from "../lib/tournaments.js";
+} from "../lib/matchHub.js";
 
 const BANNER_PRESETS = [
   { label: "Stadium Arena", url: "/images/3.jpg" },
