@@ -67,15 +67,15 @@ create policy "Tournaments are publicly viewable"
 -- after you've registered your own account).
 create policy "Only admin can insert tournaments"
   on tournaments for insert
-  with check (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
+  with check (public.is_rivalx_admin());
 
 create policy "Only admin can update tournaments"
   on tournaments for update
-  using (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
+  using (public.is_rivalx_admin() or created_by = auth.uid());
 
 create policy "Only admin can delete tournaments"
   on tournaments for delete
-  using (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
+  using (public.is_rivalx_admin() or created_by = auth.uid());
 
 
 
@@ -111,11 +111,26 @@ create policy "Players can insert their own pending entry"
   on entries for insert
   with check (auth.uid() = player_id and payment_status = 'pending');
 
+create policy "Players can insert their own free paid entry"
+  on entries for insert
+  with check (
+    auth.uid() = player_id
+    and payment_status = 'paid'
+    and application_status = 'pending'
+    and exists (
+      select 1
+      from tournaments t
+      where t.id = tournament_id
+        and t.entry_fee = 0
+        and t.status = 'open'
+    )
+  );
+
 -- Admin can update entries (to confirm/reject applications).
 -- The webhook function (service_role) can also change payment_status.
 create policy "Admin can update entries"
   on entries for update
-  using (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
+  using (public.is_rivalx_admin());
 
 
 -- ─────────────────────────────────────────────
@@ -146,11 +161,11 @@ create policy "Matches are publicly viewable"
 
 create policy "Only admin can insert matches"
   on matches for insert
-  with check (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
+  with check (public.is_rivalx_admin());
 
 create policy "Only admin can update matches"
   on matches for update
-  using (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
+  using (public.is_rivalx_admin());
 
 
 -- ─────────────────────────────────────────────
@@ -178,8 +193,8 @@ create policy "MVP moments are publicly viewable"
 
 create policy "Only admin can insert MVP moments"
   on mvp_moments for insert
-  with check (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
+  with check (public.is_rivalx_admin());
 
 create policy "Only admin can delete MVP moments"
   on mvp_moments for delete
-  using (auth.uid() = '1164535d-5949-49e6-abb6-5ad30921fd21');
+  using (public.is_rivalx_admin());
