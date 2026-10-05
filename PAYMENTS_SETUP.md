@@ -68,3 +68,10 @@ https://your-project-ref.supabase.co/functions/v1/paystack-webhook
 
 Tell me and I'll wire the Profile and Leaderboard pages to pull real
 data from these tables instead of the mock data.
+
+
+## Tournament management and free tournaments
+
+Run `supabase/tournament-management-fix.sql` in Supabase SQL Editor after pulling the latest code. This fixes tournament DELETE/UPDATE RLS, allows players to join free tournaments without Paystack, and enables realtime entry updates so tournament member counts stay current.
+
+If the admin account is not the UID already present in the SQL, give that Supabase user the secure `app_metadata` role `admin` (not `user_metadata`). The app already recognizes that role claim.
