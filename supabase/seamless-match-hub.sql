@@ -444,8 +444,12 @@ security definer
 set search_path = public
 as $$
 begin
-  if new.status = 'live' and (tg_op = 'INSERT' or old.status is distinct from new.status) then
-    perform public.seed_live_tournament_rooms(new.id);
+  if new.status = 'live' then
+    if tg_op = 'INSERT' then
+      perform public.seed_live_tournament_rooms(new.id);
+    elsif old.status is distinct from new.status then
+      perform public.seed_live_tournament_rooms(new.id);
+    end if;
   end if;
   return new;
 end;
