@@ -5,6 +5,7 @@ import { supabase } from "../lib/supabase.js";
 import {
   fetchTournament,
   createPendingEntry,
+  createFreeEntry,
   subscribeToEntryChanges,
   fetchTournamentEntries,
   fetchTournamentMatches,
@@ -111,6 +112,7 @@ export default function TournamentDetail() {
     );
   }
 
+  const isFree = Number(tournament.entry_fee) === 0;
   const full = tournament.slotsFilled >= tournament.slots;
   const cond = tournament.conditions || {};
 
@@ -123,10 +125,10 @@ export default function TournamentDetail() {
   const isLive = tournament.status === "live";
   const isCompleted = tournament.status === "completed";
 
-  // Determine bracket stage progress
-  const confirmedEntries = entries.filter((e) => e.application_status === "confirmed" && e.payment_status === "paid");
+  // A member has successfully registered and has not been rejected.
+  const memberEntries = entries.filter((e) => e.payment_status === "paid" && e.application_status !== "rejected");
   const totalSlots = tournament.slots || 32;
-  const bracketProgress = Math.min((confirmedEntries.length / totalSlots) * 100, 100);
+  const bracketProgress = Math.min((memberEntries.length / totalSlots) * 100, 100);
 
   // Calculate stage percentage based on matches posted
   const stageOrder = ["Round of 64", "Round of 32", "Round of 16", "Quarter Finals", "Semi Finals", "Final"];
@@ -172,6 +174,13 @@ export default function TournamentDetail() {
     setEntering(true);
     setStatus(null);
     try {
+      if (isFree) {
+        const entry = await createFreeEntry({ tournamentId: id, playerId: user.id });
+        setEntries((prev) => (prev.some((item) => item.id === entry.id) ? prev : [...prev, entry]));
+        setStatus("free-joined");
+        return;
+      }
+
       const ref = generatePaystackRef();
       await createPendingEntry({ tournamentId: id, playerId: user.id, paystackRef: ref });
       await payTournamentEntry({
@@ -336,7 +345,7 @@ export default function TournamentDetail() {
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, color: "var(--muted)", marginBottom: 6 }}>
             <span>Confirmed Bracket Slots</span>
             <span style={{ fontWeight: 600, color: "var(--silver-bright)" }}>
-              {confirmedEntries.length} / {tournament.slots} players
+              {memberEntries.length} / {tournament.slots} players
             </span>
           </div>
           <div className="rx-slot-progress" style={{ margin: 0 }}>
@@ -392,11 +401,11 @@ export default function TournamentDetail() {
           {/* Players in tournament */}
           <div style={{ background: "var(--panel)", border: "1px solid var(--border)", padding: 20, marginBottom: 20 }} className="rx-clip">
             <h3 className="rx-display" style={{ fontSize: 17, fontWeight: 700, margin: "0 0 12px" }}>
-              Players in this tournament ({confirmedEntries.length})
+              Players in this tournament ({memberEntries.length})
             </h3>
-            {confirmedEntries.length ? (
+            {memberEntries.length ? (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
-                {confirmedEntries.map((entry) => (
+                {memberEntries.map((entry) => (
                   <div key={entry.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", background: "var(--bg)", border: "1px solid var(--border)", fontSize: 13 }}>
                     <span style={{ width: 24, height: 24, borderRadius: "50%", background: "var(--panel-2)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "var(--red)", flexShrink: 0 }}>
                       {entry.players?.tag?.[0]?.toUpperCase() || "?"}
@@ -408,7 +417,7 @@ export default function TournamentDetail() {
                 ))}
               </div>
             ) : (
-              <p style={{ color: "var(--muted)", fontSize: 13 }}>No confirmed players yet.</p>
+              <p style={{ color: "var(--muted)", fontSize: 13 }}>No players registered yet.</p>
             )}
           </div>
 
@@ -596,7 +605,9 @@ export default function TournamentDetail() {
               : isCompleted
               ? "Tournament Completed"
               : entering
-              ? "Opening Paystack Checkout…"
+              ? (isFree ? "Joining…" : "Opening Paystack Checkout…")
+              : isFree
+              ? "Join Free Tournament"
               : `Pay Entry Fee & Join (₦${tournament.entry_fee.toLocaleString()})`}
           </button>
         )}
@@ -627,7 +638,7 @@ export default function TournamentDetail() {
           </p>
         )}
 
-        {status && status !== "paid" && status !== "cancelled" && (
+        {status && status !== "paid" && status !== "free-joined" && status !== "cancelled" && (
           <div
             style={{
               background: "rgba(255, 60, 60, 0.15)",
