@@ -35,17 +35,47 @@ export function isAdmin(user) {
 // already exists.
 export async function ensurePlayerRow(user) {
   if (!supabase || !user) return;
+
   const { data: existing } = await supabase
     .from("players")
     .select("id")
     .eq("id", user.id)
     .maybeSingle();
-  if (existing) return;
 
-  await supabase.from("players").insert({
-    id: user.id,
-    tag: user.user_metadata?.username || user.email?.split("@")[0] || "Player",
-  });
+  if (!existing) {
+    await supabase.from("players").insert({
+      id: user.id,
+      tag: user.user_metadata?.username || user.email?.split("@")[0] || "Player",
+    });
+  }
+
+  // Keep server-side activity fresh for referral qualification.
+  try {
+    await supabase.rpc("touch_player_activity");
+  } catch {
+    // The RPC is added by the referral migration; don't block login if it
+    // hasn't been run yet.
+  }
+
+  // A referral may arrive from email signup metadata or from a Google
+  // signup where we temporarily keep it in localStorage until the OAuth
+  // callback returns.
+  const pendingReferral =
+    user.user_metadata?.referred_by ||
+    (typeof window !== "undefined" ? localStorage.getItem("rivalx_referral_pending") : "");
+
+  if (pendingReferral) {
+    try {
+      const { error } = await supabase.rpc("record_referral", {
+        p_referral_code: pendingReferral,
+      });
+      if (!error && typeof window !== "undefined") {
+        localStorage.removeItem("rivalx_referral_pending");
+      }
+    } catch {
+      // Referral processing should never prevent a player from signing in.
+    }
+  }
 }
 
 // Checks whether a username/tag is already taken by another player.
@@ -63,22 +93,66 @@ export async function checkUsernameAvailable(username) {
   return !data;
 }
 
-export async function signUpWithEmail(email, password, username) {
+export async function signUpWithEmail(email, password, username, referralCode = "") {
   if (!supabase) throw new Error("Supabase is not configured yet — see src/lib/supabase.js");
+  const normalizedReferral = referralCode.trim().toUpperCase();
+
+  if (normalizedReferral && typeof window !== "undefined") {
+    localStorage.setItem("rivalx_referral_pending", normalizedReferral);
+  }
+
   const result = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { username: username.trim() } },
+    options: {
+      data: {
+        username: username.trim(),
+        ...(normalizedReferral ? { referred_by: normalizedReferral } : {}),
+      },
+    },
   });
   if (result.error) throw result.error;
   return result;
 }
 
-export async function signInWithGoogle() {
+export async function signInWithGoogle(referralCode = "") {
   if (!supabase) throw new Error("Supabase is not configured yet — see src/lib/supabase.js");
+  const normalizedReferral = referralCode.trim().toUpperCase();
+  if (normalizedReferral && typeof window !== "undefined") {
+    localStorage.setItem("rivalx_referral_pending", normalizedReferral);
+  }
   const result = await supabase.auth.signInWithOAuth({ provider: "google" });
   if (result.error) throw result.error;
   return result;
+}
+
+export async function touchPlayerActivity() {
+  if (!supabase) return;
+  const { error } = await supabase.rpc("touch_player_activity");
+  if (error) throw error;
+}
+
+export async function deleteMyAccount() {
+  if (!supabase) throw new Error("Supabase is not configured yet.");
+  const { error } = await supabase.functions.invoke("delete-account", {
+    method: "POST",
+  });
+  if (error) throw error;
+
+  const userId = (await supabase.auth.getUser()).data.user?.id;
+  if (typeof window !== "undefined") {
+    if (userId) {
+      localStorage.removeItem(`rivalx_avatar_${userId}`);
+      localStorage.removeItem(`rivalx_squad_${userId}`);
+    }
+    localStorage.removeItem("rivalx_referral_pending");
+    localStorage.removeItem("rivalx_demo_session");
+  }
+
+  await supabase.auth.signOut({ scope: "local" });
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event("rivalx-auth-change"));
+  }
 }
 
 export async function signInWithEmail(email, password) {
