@@ -199,16 +199,11 @@ export default function Profile() {
                 WebkitTextFillColor: "transparent",
               }}
             >
-              {username}
-            </h1>
-            {verificationBadge !== "none" && (
-              <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 10, maxWidth: "100%" }}>
+                <span style={{ overflowWrap: "anywhere" }}>{username}</span>
                 <VerificationBadge badge={verificationBadge} size="lg" />
-                <span style={{ fontSize: 12, color: "var(--muted)", fontWeight: 600 }}>
-                  {verificationBadge === "blue" ? "Rival X Verified" : verificationBadge === "red" ? "Rival X Elite Verified" : "Rival X Legend Verified"}
-                </span>
-              </div>
-            )}
+              </span>
+            </h1>
             {winStreak > 0 && (
               <div style={{ marginTop: 8, fontSize: 13, color: "#4ade80", fontWeight: 600 }}>
                 🔥 {winStreak} win streak
