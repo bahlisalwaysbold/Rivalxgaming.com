@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import PlaceholderImage from "../components/PlaceholderImage.jsx";
-import { supabase, ensurePlayerRow } from "../lib/supabase.js";
+import { supabase, ensurePlayerRow, deleteMyAccount } from "../lib/supabase.js";
 import { fetchPlayerStats } from "../lib/tournaments.js";
 import { getEffectiveVerification } from "../lib/verification.js";
 import VerificationBadge from "../components/VerificationBadge.jsx";
