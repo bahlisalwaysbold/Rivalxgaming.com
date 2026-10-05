@@ -9,7 +9,6 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
   const [user, setUser] = useState(null);
-  const [visibleCount, setVisibleCount] = useState(11);
 
   useEffect(() => {
     let active = true;
@@ -129,7 +128,7 @@ export default function Leaderboard() {
             <span>Pts</span>
           </div>
 
-          {leaderboard.slice(0, visibleCount).map((p) => (
+          {leaderboard.slice(0, 10).map((p) => (
             <Link
               to={`/profile/${p.id}`}
               key={p.id}
@@ -176,19 +175,6 @@ export default function Leaderboard() {
             </Link>
           ))}
 
-          {leaderboard.length > 11 && (
-            <div style={{ display: "flex", justifyContent: "center", marginTop: 18 }}>
-              <button
-                type="button"
-                className="rx-btn-outline"
-                onClick={() => setVisibleCount((count) => (count >= leaderboard.length ? 11 : leaderboard.length))}
-              >
-                {visibleCount >= leaderboard.length
-                  ? "Show less"
-                  : "Show more · " + (leaderboard.length - visibleCount) + " more players"}
-              </button>
-            </div>
-          )}
         </div>
       )}
     </div>
