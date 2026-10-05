@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import PlaceholderImage from "../components/PlaceholderImage.jsx";
+import VerificationBadge from "../components/VerificationBadge.jsx";
 import { supabase } from "../lib/supabase.js";
 import {
   fetchTournament,
@@ -411,7 +412,7 @@ export default function TournamentDetail() {
                       {entry.players?.tag?.[0]?.toUpperCase() || "?"}
                     </span>
                     <span style={{ fontWeight: 600, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {entry.players?.tag || "Unknown"}
+                      {entry.players?.tag || "Unknown"} <VerificationBadge badge={entry.players?.verification_badge} />
                     </span>
                   </div>
                 ))}
