@@ -1414,7 +1414,7 @@ export default function Admin() {
         <div style={{ marginTop: 0 }}>
           <h2 className="rx-display" style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Player Verification</h2>
           <p style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.6, marginBottom: 18 }}>
-            Blue = top 2 in each of the last two completed months. Gold = unbeaten for 3+ years. Red = unbeaten for 6+ years. Admins can also grant any badge manually.
+            Blue = top 2 in each of the last two completed months OR 100 active referrals with at least 60% having played a Rival X tournament. Gold = unbeaten for 3+ years. Red = unbeaten for 6+ years. Admins can also grant any badge manually.
           </p>
           {!verificationPlayers.length ? (
             <p style={{ color: "var(--muted)", fontSize: 14 }}>No players found.</p>
