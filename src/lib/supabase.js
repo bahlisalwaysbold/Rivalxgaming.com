@@ -43,11 +43,20 @@ export async function ensurePlayerRow(user) {
     .maybeSingle();
 
   if (!existing) {
-    await supabase.from("players").insert({
+    const { error: insertError } = await supabase.from("players").insert({
       id: user.id,
       tag: user.user_metadata?.username || user.email?.split("@")[0] || "Player",
     });
+    if (insertError) throw insertError;
   }
+
+  const { data: verifiedPlayer, error: verifyError } = await supabase
+    .from("players")
+    .select("id")
+    .eq("id", user.id)
+    .maybeSingle();
+  if (verifyError) throw verifyError;
+  if (!verifiedPlayer) throw new Error("Rival X could not create your player profile. Please refresh and try again.");
 
   // Keep server-side activity fresh for referral qualification.
   try {
