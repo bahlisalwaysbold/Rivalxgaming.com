@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase, isAdmin, ADMIN_USER_ID, ADMIN_EMAIL } from "../lib/supabase.js";
+import VerificationBadge from "../components/VerificationBadge.jsx";
 import {
   createTournament,
   fetchTournaments,
@@ -13,6 +14,8 @@ import {
   createMvpMoment,
   deleteMvpMoment,
   fetchMvpMoments,
+  fetchVerificationPlayers,
+  updatePlayerVerification,
 } from "../lib/tournaments.js";
 
 const BANNER_PRESETS = [
@@ -83,6 +86,8 @@ export default function Admin() {
   const [tournaments, setTournaments] = useState([]);
   const [deletingId, setDeletingId] = useState(null);
   const [activeTab, setActiveTab] = useState("create");
+  const [verificationPlayers, setVerificationPlayers] = useState([]);
+  const [updatingVerification, setUpdatingVerification] = useState(null);
 
   // Match posting state
   const [matchForm, setMatchForm] = useState(blankMatch);
@@ -151,8 +156,30 @@ export default function Admin() {
       loadTournaments();
       loadAllPlayers();
       loadMvpMoments();
+      loadVerificationPlayers();
     }
   }, [authorized]);
+
+  async function loadVerificationPlayers() {
+    try {
+      setVerificationPlayers(await fetchVerificationPlayers());
+    } catch {
+      setVerificationPlayers([]);
+    }
+  }
+
+  async function handleVerificationChange(playerId, badge) {
+    setUpdatingVerification(playerId);
+    try {
+      await updatePlayerVerification(playerId, badge);
+      setMessage(badge === "none" ? "Verification removed." : `Verification badge updated to ${badge}.`);
+      await loadVerificationPlayers();
+    } catch (err) {
+      setErrorMsg(err.message || "Could not update verification.");
+    } finally {
+      setUpdatingVerification(null);
+    }
+  }
 
   // Load entries for all tournaments when tournaments change
   useEffect(() => {
@@ -480,6 +507,7 @@ export default function Admin() {
     { id: "matches", label: "Post Match" },
     { id: "applications", label: "Applications" },
     { id: "mvp", label: "MVP Moments" },
+    { id: "verification", label: "Player Verification" },
     { id: "manage", label: "Manage Tournaments" },
   ];
 
@@ -1242,6 +1270,46 @@ export default function Admin() {
               <p style={{ color: "var(--muted)", fontSize: 13 }}>No MVP moments posted yet.</p>
             )}
           </div>
+        </div>
+      )}
+
+      {activeTab === "verification" && (
+        <div style={{ marginTop: 0 }}>
+          <h2 className="rx-display" style={{ fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Player Verification</h2>
+          <p style={{ color: "var(--muted)", fontSize: 13, lineHeight: 1.6, marginBottom: 18 }}>
+            Blue = top 2 in each of the last two completed months. Gold = unbeaten for 3+ years. Red = unbeaten for 6+ years. Admins can also grant any badge manually.
+          </p>
+          {!verificationPlayers.length ? (
+            <p style={{ color: "var(--muted)", fontSize: 14 }}>No players found.</p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {verificationPlayers.map((player) => (
+                <div key={player.id} className="rx-clip" style={{ background: "var(--panel)", border: "1px solid var(--border)", padding: "14px 16px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 220 }}>
+                    <span style={{ fontWeight: 700 }}>{player.tag}</span>
+                    <VerificationBadge badge={player.effective_verification_badge} />
+                    {player.auto_verification_badge !== "none" && player.verification_badge === "none" && (
+                      <span style={{ fontSize: 10, color: "var(--muted)" }}>AUTO · {player.auto_verification_badge.toUpperCase()}</span>
+                    )}
+                    {player.verification_badge !== "none" && (
+                      <span style={{ fontSize: 10, color: "var(--muted)" }}>ADMIN</span>
+                    )}
+                  </div>
+                  <select
+                    value={player.verification_badge || "none"}
+                    onChange={(e) => handleVerificationChange(player.id, e.target.value)}
+                    disabled={updatingVerification === player.id}
+                    style={{ width: 165, background: "var(--bg)", border: "1px solid var(--border)", color: "var(--silver)", padding: "8px 10px", fontFamily: "inherit", fontSize: 12 }}
+                  >
+                    <option value="none">Automatic / None</option>
+                    <option value="blue">Blue ✓</option>
+                    <option value="red">Red ✓</option>
+                    <option value="gold">Gold ✓</option>
+                  </select>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
