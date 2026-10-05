@@ -3,6 +3,7 @@
 
 import { supabase } from "./supabase.js";
 import { getEffectiveVerification } from "./verification.js";
+import { fetchReferralQualifiedPlayerIds } from "./referrals.js";
 
 // ── Tournaments ──────────────────────────────────────────────
 
@@ -356,11 +357,18 @@ export async function fetchLeaderboard() {
 
   const allPlayers = players || [];
   const playerMap = Object.fromEntries(allPlayers.map((player) => [player.id, player]));
+  let referralQualifiedIds = [];
+  try {
+    referralQualifiedIds = await fetchReferralQualifiedPlayerIds();
+  } catch {
+    referralQualifiedIds = [];
+  }
+  const referralQualified = new Set(referralQualifiedIds);
   return Object.values(byPlayer)
     .map((p) => ({
       ...p,
       points: p.wins * 3 + p.tournamentsWon * 5,
-      verification_badge: getEffectiveVerification(playerMap[p.id] || p, allPlayers, matches || []),
+      verification_badge: getEffectiveVerification(playerMap[p.id] || p, allPlayers, matches || [], new Date(), referralQualified.has(p.id)),
     }))
     .sort((a, b) => b.points - a.points || b.wins - a.wins)
     .map((p, i) => ({ ...p, rank: i + 1 }));
@@ -463,10 +471,17 @@ export async function fetchVerificationPlayers() {
   ]);
   if (playersError) throw playersError;
   if (matchesError) throw matchesError;
+  let referralQualifiedIds = [];
+  try {
+    referralQualifiedIds = await fetchReferralQualifiedPlayerIds();
+  } catch {
+    referralQualifiedIds = [];
+  }
+  const referralQualified = new Set(referralQualifiedIds);
   return (players || []).map((player) => ({
     ...player,
-    auto_verification_badge: getEffectiveVerification({ ...player, verification_badge: "none" }, players || [], matches || []),
-    effective_verification_badge: getEffectiveVerification(player, players || [], matches || []),
+    auto_verification_badge: getEffectiveVerification({ ...player, verification_badge: "none" }, players || [], matches || [], new Date(), referralQualified.has(player.id)),
+    effective_verification_badge: getEffectiveVerification(player, players || [], matches || [], new Date(), referralQualified.has(player.id)),
   }));
 }
 
