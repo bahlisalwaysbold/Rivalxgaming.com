@@ -6,6 +6,8 @@ import { fetchPlayerStats } from "../lib/tournaments.js";
 import { getEffectiveVerification } from "../lib/verification.js";
 import VerificationBadge from "../components/VerificationBadge.jsx";
 
+import { fetchMyReferralStats, fetchReferralQualifiedPlayerIds } from "../lib/referrals.js";
+
 const emptyStats = [
   { label: "Matches", value: "0" },
   { label: "Wins", value: "0" },
@@ -28,6 +30,8 @@ export default function Profile() {
   const [verificationBadge, setVerificationBadge] = useState("none");
   const [isOwnProfile, setIsOwnProfile] = useState(true);
   const [viewingUser, setViewingUser] = useState(null);
+  const [referralStats, setReferralStats] = useState(null);
+  const [deletingAccount, setDeletingAccount] = useState(false);
 
   useEffect(() => {
     async function loadProfile() {
@@ -48,24 +52,38 @@ export default function Profile() {
 
           if (currentUser) {
             await ensurePlayerRow(currentUser);
-            const { stats, matches, winStreak: streak, player } = await fetchPlayerStats(currentUser.id);
+            const [{ stats, matches, winStreak: streak, player }, myReferralStats] = await Promise.all([
+              fetchPlayerStats(currentUser.id),
+              fetchMyReferralStats().catch(() => null),
+            ]);
             setProfileStats(stats);
             setProfileMatches(matches);
             setWinStreak(streak || 0);
             if (player?.squad_photo_url) setSquadPhoto(player.squad_photo_url);
+            setReferralStats(myReferralStats);
 
             const { data: ownPlayerRow } = await supabase
               .from("players")
-              .select("id, tag, avatar_url, squad_photo_url, win_streak, created_at, verification_badge")
+              .select("id, tag, avatar_url, squad_photo_url, win_streak, created_at, verification_badge, referral_code")
+
               .eq("id", currentUser.id)
               .maybeSingle();
 
             if (ownPlayerRow) {
-              const [{ data: allPlayers }, { data: allMatches }] = await Promise.all([
+              const [{ data: allPlayers }, { data: allMatches }, qualifiedIds] = await Promise.all([
                 supabase.from("players").select("id, tag, avatar_url, created_at, verification_badge"),
                 supabase.from("matches").select("id, player_id, player2_id, result, winner_id, eliminated_id, round, stage, played_at"),
+                fetchReferralQualifiedPlayerIds().catch(() => []),
               ]);
-              setVerificationBadge(getEffectiveVerification(ownPlayerRow, allPlayers || [], allMatches || []));
+              setVerificationBadge(
+                getEffectiveVerification(
+                  ownPlayerRow,
+                  allPlayers || [],
+                  allMatches || [],
+                  new Date(),
+                  (qualifiedIds || []).includes(currentUser.id)
+                )
+              );
             }
           }
         } else {
@@ -81,11 +99,20 @@ export default function Profile() {
             setAvatar(playerRow.avatar_url || null);
             setSquadPhoto(playerRow.squad_photo_url || null);
             setWinStreak(playerRow.win_streak || 0);
-            const [{ data: allPlayers }, { data: allMatches }] = await Promise.all([
+            const [{ data: allPlayers }, { data: allMatches }, qualifiedIds] = await Promise.all([
               supabase.from("players").select("id, tag, avatar_url, created_at, verification_badge"),
               supabase.from("matches").select("id, player_id, player2_id, result, winner_id, eliminated_id, round, stage, played_at"),
+              fetchReferralQualifiedPlayerIds().catch(() => []),
             ]);
-            setVerificationBadge(getEffectiveVerification(playerRow, allPlayers || [], allMatches || []));
+            setVerificationBadge(
+              getEffectiveVerification(
+                playerRow,
+                allPlayers || [],
+                allMatches || [],
+                new Date(),
+                (qualifiedIds || []).includes(targetId)
+              )
+            );
             const { stats, matches } = await fetchPlayerStats(targetId);
             setProfileStats(stats);
             setProfileMatches(matches);
@@ -143,6 +170,32 @@ export default function Profile() {
     const reader = new FileReader();
     reader.onload = () => setSquadPhoto(reader.result);
     reader.readAsDataURL(file);
+  }
+
+  async function copyReferralLink() {
+    const code = referralStats?.referral_code;
+    if (!code) return;
+    const link = `${window.location.origin}/register?ref=${encodeURIComponent(code)}`;
+    try {
+      await navigator.clipboard.writeText(link);
+      setMessage("Referral link copied.");
+    } catch {
+      setMessage(link);
+    }
+  }
+
+  async function handleDeleteAccount() {
+    if (!window.confirm("Are you sure you want to delete your Rival X account? This cannot be undone.")) return;
+
+    setDeletingAccount(true);
+    setMessage(null);
+    try {
+      await deleteMyAccount();
+      window.location.assign("/");
+    } catch (error) {
+      setMessage(error.message || "Unable to delete your account.");
+      setDeletingAccount(false);
+    }
   }
 
   async function saveSettings(event) {
@@ -256,6 +309,33 @@ export default function Profile() {
               )}
             </div>
             <button type="submit" className="rx-btn" disabled={availability === "taken"}>Save changes</button>
+
+            <div
+              style={{
+                gridColumn: "1 / -1",
+                marginTop: 4,
+                padding: 16,
+                border: "1px solid #4a1b20",
+                background: "rgba(216, 30, 39, 0.06)",
+              }}
+              className="rx-clip-sm"
+            >
+              <div style={{ color: "#ff8888", fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                DANGER ZONE
+              </div>
+              <p style={{ color: "var(--muted)", fontSize: 11, margin: "0 0 10px" }}>
+                Permanently delete your Rival X account, tournament entries, matches, and profile data.
+              </p>
+              <button
+                type="button"
+                className="rx-btn"
+                onClick={handleDeleteAccount}
+                disabled={deletingAccount}
+                style={{ background: "#5b1118", border: "1px solid #ff4444", color: "#fff", fontSize: 12, padding: "9px 14px" }}
+              >
+                {deletingAccount ? "Deleting account…" : "Delete my account"}
+              </button>
+            </div>
           </form>
         )}
         {message && <p className="rx-profile-message">{message}</p>}
@@ -293,6 +373,43 @@ export default function Profile() {
           ))}
         </div>
       </div>
+
+      {isOwnProfile && referralStats?.referral_code && (
+        <div className="rx-container" style={{ padding: "24px 24px 0" }}>
+          <div className="rx-referral-card rx-clip">
+            <div>
+              <div className="rx-eyebrow" style={{ marginBottom: 5 }}>RIVAL X REFERRALS</div>
+              <h2 className="rx-display" style={{ fontSize: 24, margin: 0 }}>Build your Blue Check</h2>
+              <p style={{ color: "var(--muted)", fontSize: 12, lineHeight: 1.6, margin: "8px 0 16px" }}>
+                Refer 100 active players, with at least 60% of those active referrals having played a Rival X tournament, to qualify for automatic Blue verification.
+              </p>
+            </div>
+
+            <div className="rx-referral-id-row">
+              <div>
+                <span className="rx-referral-label">YOUR REFERRAL ID</span>
+                <strong>{referralStats.referral_code}</strong>
+              </div>
+              <button type="button" className="rx-btn-outline" onClick={copyReferralLink}>
+                Copy invite link
+              </button>
+            </div>
+
+            <div className="rx-referral-progress">
+              <div><span>Active referrals</span><strong>{referralStats.active_referrals}/100</strong></div>
+              <div className="rx-referral-bar"><span style={{ width: `${Math.min((referralStats.active_referrals / 100) * 100, 100)}%` }} /></div>
+              <div><span>Tournament players</span><strong>{referralStats.tournament_players}/{Math.max(60, Math.ceil((referralStats.active_referrals || 0) * 0.6))}</strong></div>
+              <div className="rx-referral-bar"><span style={{ width: `${Math.min(referralStats.active_play_rate || 0, 100)}%` }} /></div>
+            </div>
+
+            {referralStats.qualifies_for_referral_blue && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, color: "#1d9bf0", fontSize: 12, fontWeight: 700 }}>
+                <VerificationBadge badge="blue" /> Referral Blue verification unlocked.
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Match history */}
       <div className="rx-container rx-match-history" style={{ padding: "40px 24px", maxWidth: 640 }}>
