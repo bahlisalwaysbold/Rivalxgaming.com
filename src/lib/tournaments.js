@@ -98,7 +98,8 @@ export function serializeTournamentConditions(formData) {
   };
 }
 
-// Fetches every tournament plus how many PAID entries each one has
+// Fetches every tournament plus how many registered entries each one has.
+// Free entries are stored as paid internally because no payment is required.
 export async function fetchTournaments() {
   if (!supabase) return [];
 
@@ -150,9 +151,12 @@ export async function createTournament(payload) {
   // Always serialize the form payload so only valid columns are sent
   const rowPayload = serializeTournamentConditions(payload);
 
+  const { data: userData } = await supabase.auth.getUser();
+  if (userData?.user?.id) rowPayload.created_by = userData.user.id;
+
   const { data, error } = await supabase.from("tournaments").insert(rowPayload).select().single();
   if (error) throw error;
-  return parseTournamentConditions(data);
+  return parseTournamentConditions({ ...data, slotsFilled: 0 });
 }
 
 export async function updateTournament(id, payload) {
@@ -164,8 +168,18 @@ export async function updateTournament(id, payload) {
 
 export async function deleteTournament(id) {
   if (!supabase) throw new Error("Supabase is not configured yet.");
-  const { error } = await supabase.from("tournaments").delete().eq("id", id);
+
+  // Selecting the deleted row makes RLS failures visible instead of
+  // silently treating a blocked DELETE as successful.
+  const { data, error } = await supabase
+    .from("tournaments")
+    .delete()
+    .eq("id", id)
+    .select("id")
+    .maybeSingle();
+
   if (error) throw error;
+  if (!data) throw new Error("Tournament was not deleted. Check the Supabase admin RLS policy.");
   return true;
 }
 
@@ -195,6 +209,39 @@ export async function createPendingEntry({ tournamentId, playerId, paystackRef }
       player_id: playerId,
       paystack_ref: paystackRef,
       payment_status: "pending",
+      application_status: "pending",
+    })
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+// Registers a free tournament entry without opening Paystack checkout.
+export async function createFreeEntry({ tournamentId, playerId }) {
+  if (!supabase) throw new Error("Supabase is not configured yet — see src/lib/supabase.js");
+
+  const { data: existing, error: existingError } = await supabase
+    .from("entries")
+    .select("id, tournament_id, player_id, payment_status, application_status, created_at")
+    .eq("tournament_id", tournamentId)
+    .eq("player_id", playerId)
+    .limit(1)
+    .maybeSingle();
+  if (existingError) throw existingError;
+  if (existing) return existing;
+
+  const freeRef = typeof crypto !== "undefined" && crypto.randomUUID
+    ? `FREE-${crypto.randomUUID()}`
+    : `FREE-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+  const { data, error } = await supabase
+    .from("entries")
+    .insert({
+      tournament_id: tournamentId,
+      player_id: playerId,
+      paystack_ref: freeRef,
+      payment_status: "paid",
       application_status: "pending",
     })
     .select()
