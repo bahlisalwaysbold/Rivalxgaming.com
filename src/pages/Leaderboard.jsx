@@ -9,6 +9,7 @@ export default function Leaderboard() {
   const [loading, setLoading] = useState(true);
   const [authChecked, setAuthChecked] = useState(false);
   const [user, setUser] = useState(null);
+  const [visibleCount, setVisibleCount] = useState(11);
 
   useEffect(() => {
     let active = true;
@@ -128,7 +129,7 @@ export default function Leaderboard() {
             <span>Pts</span>
           </div>
 
-          {leaderboard.map((p) => (
+          {leaderboard.slice(0, visibleCount).map((p) => (
             <Link
               to={`/profile/${p.id}`}
               key={p.id}
